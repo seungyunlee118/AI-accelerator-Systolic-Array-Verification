@@ -12,14 +12,18 @@ PE array) verified with a UVM environment on Cadence Xcelium.
 | `sim/`          | Simulation run directory (outputs are git-ignored) |
 
 ## Status
-- [x] Spec v0.1
+- [x] Spec v0.2 (4 outstanding reads with out-of-order/interleaved R data, INT8 requantization)
 - [x] PE + systolic array RTL, smoke test passing (80 cases, Xcelium 24.09)
-- [ ] CSR (AXI4-Lite), DMA (AXI4 master), controller, top
+- [x] CSR (AXI4-Lite) RTL, smoke test passing (AW/W ordering, strobes, W1C set-vs-clear race)
+- [x] Output stage (ReLU + requantization) RTL, smoke test passing (21,851 checks)
+- [ ] DMA (AXI4 master), controller, top
 - [ ] UVM environment (RAL, AXI memory responder, DPI-C golden model, coverage)
 - [ ] Regression and coverage closure
 
-## Run the smoke test (on the Xcelium server)
+## Run the smoke tests (on the Xcelium server)
 ```bash
 cd sim
 xrun -64bit -sv ../rtl/sa_pe.sv ../rtl/sa_array.sv ../tb/smoke/tb_sa_array.sv
+xrun -64bit -sv ../rtl/sa_csr.sv  ../tb/smoke/tb_sa_csr.sv
+xrun -64bit -sv ../rtl/sa_outq.sv ../tb/smoke/tb_sa_outq.sv
 ```
