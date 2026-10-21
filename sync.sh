@@ -5,5 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 REMOTE_DIR=AI-accelerator-Systolic-Array-Verification
+if ! ssh -o BatchMode=yes msd10 true 2>/dev/null; then
+  echo "Cannot reach msd10. Is the UH VPN connected?" >&2
+  exit 1
+fi
 rsync -az --exclude .git/ --exclude .DS_Store ./ "msd10:${REMOTE_DIR}/"
 echo "synced -> msd10:~/${REMOTE_DIR}"
