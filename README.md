@@ -8,6 +8,20 @@ PE array + requantization) verified with a UVM environment on Cadence Xcelium.
 - **DUT RTL:** written with an AI assistant from the spec in `docs/spec.md`, then treated as
   a third-party design under test.
 
+## Architecture
+<p align="center">
+  <img src="docs/sa_gemm_block_diagram.svg" alt="SA-GEMM DUT block diagram" width="680">
+</p>
+
+1. The CPU (the UVM AXI4-Lite agent in simulation) programs the CSR block and writes `CTRL.START`.
+2. The controller has the DMA engine fetch A and B from external memory over AXI4
+   (up to 4 outstanding read bursts, out-of-order / interleaved responses).
+3. The 4×4 output-stationary systolic array computes each output tile from the A/B buffers.
+4. The output stage applies ReLU and optional INT8 requantization; the DMA engine writes C back.
+5. On completion or error the CSR block raises `irq`.
+
+Full details are in [`docs/spec.md`](docs/spec.md).
+
 ## Layout
 | Path            | Contents |
 |-----------------|----------|

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="450" viewBox="0 0 680 450" role="img" font-family="Helvetica, Arial, sans-serif">
+  <title>SA-GEMM DUT block diagram</title>
+  <desc>The CPU configures the CSR block over AXI4-Lite and receives irq. The controller drives the DMA engine, which reads A and B from external memory over AXI4 into the A/B buffers. The 4x4 PE array computes, the output stage applies ReLU and requantization, and the DMA engine writes C back to memory.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="680" height="450" rx="12" fill="#FFFFFF"/>
+
+  <rect x="160" y="20" width="350" height="390" rx="20" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.75"/>
+  <text x="178" y="40" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">DUT (sa_top)</text>
+
+  <rect x="30" y="60" width="115" height="56" rx="8" fill="#FFFFFF" stroke="#888780" stroke-width="0.75"/>
+  <text x="87" y="79" font-size="14" font-weight="600" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">CPU / UVM</text>
+  <text x="87" y="99" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">config + irq</text>
+
+  <rect x="525" y="150" width="130" height="56" rx="8" fill="#FFFFFF" stroke="#888780" stroke-width="0.75"/>
+  <text x="590" y="169" font-size="14" font-weight="600" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">External memory</text>
+  <text x="590" y="189" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">AXI4 slave</text>
+
+  <rect x="175" y="60" width="150" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.75"/>
+  <text x="250" y="79" font-size="14" font-weight="600" fill="#085041" text-anchor="middle" dominant-baseline="central">CSR registers</text>
+  <text x="250" y="99" font-size="12" fill="#0F6E56" text-anchor="middle" dominant-baseline="central">AXI4-Lite + irq</text>
+
+  <rect x="175" y="150" width="150" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.75"/>
+  <text x="250" y="169" font-size="14" font-weight="600" fill="#085041" text-anchor="middle" dominant-baseline="central">Controller FSM</text>
+  <text x="250" y="189" font-size="12" fill="#0F6E56" text-anchor="middle" dominant-baseline="central">tiling, errors</text>
+
+  <rect x="345" y="150" width="150" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.75"/>
+  <text x="420" y="169" font-size="14" font-weight="600" fill="#712B13" text-anchor="middle" dominant-baseline="central">DMA engine</text>
+  <text x="420" y="189" font-size="12" fill="#993C1D" text-anchor="middle" dominant-baseline="central">AXI4 master</text>
+
+  <rect x="345" y="240" width="150" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.75"/>
+  <text x="420" y="259" font-size="14" font-weight="600" fill="#712B13" text-anchor="middle" dominant-baseline="central">A/B buffers</text>
+  <text x="420" y="279" font-size="12" fill="#993C1D" text-anchor="middle" dominant-baseline="central">4 KB SRAM each</text>
+
+  <rect x="345" y="330" width="150" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.75"/>
+  <text x="420" y="349" font-size="14" font-weight="600" fill="#712B13" text-anchor="middle" dominant-baseline="central">4×4 PE array</text>
+  <text x="420" y="369" font-size="12" fill="#993C1D" text-anchor="middle" dominant-baseline="central">systolic MAC</text>
+
+  <rect x="175" y="330" width="150" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.75"/>
+  <text x="250" y="349" font-size="14" font-weight="600" fill="#712B13" text-anchor="middle" dominant-baseline="central">Output stage</text>
+  <text x="250" y="369" font-size="12" fill="#993C1D" text-anchor="middle" dominant-baseline="central">ReLU, requant</text>
+
+  <g stroke="#5F5E5A" stroke-width="1.5" fill="none">
+    <line x1="145" y1="80" x2="172" y2="80" marker-end="url(#arrow)"/>
+    <line x1="175" y1="98" x2="148" y2="98" marker-end="url(#arrow)"/>
+    <line x1="250" y1="116" x2="250" y2="147" marker-end="url(#arrow)"/>
+    <line x1="325" y1="178" x2="342" y2="178" marker-end="url(#arrow)"/>
+    <line x1="498" y1="178" x2="522" y2="178" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <line x1="420" y1="206" x2="420" y2="237" marker-end="url(#arrow)"/>
+    <line x1="420" y1="296" x2="420" y2="327" marker-end="url(#arrow)"/>
+    <line x1="345" y1="358" x2="328" y2="358" marker-end="url(#arrow)"/>
+    <path d="M250 330 L250 222 L370 222 L370 209" marker-end="url(#arrow)"/>
+  </g>
+  <text x="260" y="268" font-size="12" fill="#5F5E5A" dominant-baseline="central">C write</text>
+
+  <text x="340" y="432" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">teal = control path, coral = data path</text>
+</svg>
