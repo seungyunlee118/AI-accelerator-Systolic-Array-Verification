@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Xcelium / SimVision outputs (regenerated on every run)
+xcelium.d/
+INCA_libs/
+xrun.log
+xrun.history
+xrun.key
+xmvlog.log
+xmelab.log
+xmsim.log
+*.shm/
+*.trn
+*.dsn
+.simvision/
+cov_work/
+*.vcd
