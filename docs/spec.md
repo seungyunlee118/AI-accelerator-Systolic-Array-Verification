@@ -1,10 +1,11 @@
-# SA-GEMM: Systolic-Array INT8 Matrix-Multiply Accelerator — Design Spec v0.2
+# SA-GEMM: Systolic-Array INT8 Matrix-Multiply Accelerator — Design Spec v0.3
 
 Revision history
 | Version | Change |
 |---------|--------|
 | 0.1 | Initial: single-outstanding DMA, INT32 output |
 | 0.2 | Up to 4 outstanding read bursts with out-of-order / interleaved R data; requantized INT8 output (QCFG, QSCALE); ReLU |
+| 0.3 | Clarifications from vplan review: BUSY/CYCLES on configuration errors, DONE vs ERR, overlapping strides, address range |
 
 ## 1. Overview
 SA-GEMM computes `C = A × B` where `A` is M×K and `B` is K×N signed INT8 matrices. The raw
@@ -78,12 +79,16 @@ All matrices are row-major and little-endian.
 - `B[r][c]` (INT8) is at `B_BASE + r*B_STRIDE + c`.
 - `C[r][c]` is at `C_BASE + r*C_STRIDE + E*c`, where the element size `E` is
   4 bytes (INT32) when `QCFG.REQ_EN = 0` and 1 byte (INT8) when `QCFG.REQ_EN = 1`.
+- A_STRIDE may be smaller than K (and B_STRIDE smaller than N). Rows then overlap in memory
+  and are read exactly as the formulas above say. (C_STRIDE has a minimum, see §8.)
+- Software must keep every accessed address below 2^32. Address wrap-around is undefined.
 
 ## 6. Operation
 1. Software programs DIMS, the base/stride registers, QCFG/QSCALE and IRQ_EN, then writes
    CTRL.START=1.
 2. The configuration is checked (§8). On a configuration error the job ends
-   immediately: no AXI master traffic, ERR_CODE is set and IRQ_STATUS.ERR is set.
+   immediately: BUSY is never asserted, there is no AXI master traffic, ERR_CODE is set,
+   IRQ_STATUS.ERR is set and CYCLES is set to 0.
 3. Otherwise BUSY=1 and the DUT:
    1. reads all M rows of A into the A buffer,
    2. reads all K rows of B into the B buffer,
@@ -93,6 +98,8 @@ All matrices are row-major and little-endian.
       computing the next tile.
 4. After the last write response is received: BUSY=0, ERR_CODE=0, IRQ_STATUS.DONE=1,
    CYCLES is updated.
+5. IRQ_STATUS.DONE is set only by a job that succeeds and IRQ_STATUS.ERR only by a job that
+   fails; never both. ERR_CODE keeps the last job's code until the next job ends.
 
 Arithmetic: products are exact (16-bit), accumulation is INT32. With MAX_DIM=64 the
 accumulator cannot overflow.
@@ -143,7 +150,8 @@ Examples (SCALE=1, SHIFT=1): acc=3 → 2, acc=-3 → -1, acc=-4 → -2.
 
 BAD_DIM is checked before BAD_ADDR. On RD_ERR/WR_ERR the DUT stops issuing new bursts,
 completes every outstanding burst (accepting all R beats and B responses), then ends the
-job with BUSY=0 and IRQ_STATUS.ERR=1. The contents of C are undefined after an error.
+job with BUSY=0, IRQ_STATUS.ERR=1 and CYCLES updated. The contents of C are undefined after
+an error.
 
 ## 9. Reset
 `rst_n` is asynchronous. Reset aborts any running job and returns all registers to their
