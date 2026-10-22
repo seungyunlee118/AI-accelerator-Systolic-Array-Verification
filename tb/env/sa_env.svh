@@ -1,5 +1,5 @@
 // Full-chip environment: AXI4-Lite agent + RAL (CPU side), AXI4 memory agent (memory side),
-// job scoreboard with the golden model.
+// job scoreboard with the golden model, DMA checker on the AXI4 pins.
 class sa_env extends uvm_env;
   `uvm_component_utils(sa_env)
 
@@ -9,6 +9,7 @@ class sa_env extends uvm_env;
   uvm_reg_predictor #(axil_item) predictor;
   axi_mem_agent                  axi;
   sa_scoreboard                  sb;
+  sa_dma_checker                 dma_chk;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -19,6 +20,7 @@ class sa_env extends uvm_env;
     axil = axil_agent::type_id::create("axil", this);
     axi  = axi_mem_agent::type_id::create("axi", this);
     sb   = sa_scoreboard::type_id::create("sb", this);
+    dma_chk = sa_dma_checker::type_id::create("dma_chk", this);
 
     regmodel = new("regmodel");
     regmodel.build();

@@ -8,6 +8,9 @@
 #   make WAVE=1                          # batch run that records waves.shm (works over ssh)
 #   make view                            # open waves.shm in SimVision (remote desktop only)
 #   make TB=top TEST=gemm_rand_test PLUSARGS=+JOBS=40
+#   make regress                         # every test x seeds 1..4, in parallel (regress.py)
+#   make regress ARGS="--seeds 20 -j 12" # sign-off depth
+#   make mutate                          # inject each RTL bug in mutate.py, run its tests
 #   make clean
 
 SHELL := /bin/bash
@@ -19,6 +22,7 @@ VERB  ?= UVM_MEDIUM
 GUI   ?= 0
 WAVE  ?= 0
 PLUSARGS ?=
+ARGS  ?=
 
 LOG   := logs/$(TEST)_$(SEED).log
 OPTS  := -f xrun.args -f files_$(strip $(TB)).f -svseed $(SEED) \
@@ -30,7 +34,7 @@ ifeq ($(WAVE),1)
 OPTS  += -input waves.tcl
 endif
 
-.PHONY: run view clean
+.PHONY: run view clean regress mutate
 run:
 	@mkdir -p logs
 	@xrun $(OPTS) > /dev/null; \
@@ -41,5 +45,11 @@ run:
 view:
 	simvision -64bit waves.shm &
 
+regress:
+	python3 regress.py $(ARGS)
+
+mutate:
+	python3 mutate.py $(ARGS)
+
 clean:
-	rm -rf xcelium.d logs waves.shm .simvision xrun.history xrun.key xrun.log
+	rm -rf xcelium.d logs waves.shm .simvision xrun.history xrun.key xrun.log regress mutants

@@ -28,3 +28,7 @@ formal/*/*_prove/
 formal/*/*_cover/
 formal/*/mutants_work/
 formal/**/status.sqlite
+
+# regression and mutation runs (sim/regress.py, sim/mutate.py)
+sim/regress/
+sim/mutants/

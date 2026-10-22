@@ -15,16 +15,8 @@ class gemm_rand_test extends sa_top_base_test;
     void'($value$plusargs("JOBS=%d", n_jobs));
 
     repeat (n_jobs) begin
-      env.axi.cfg.rd_order    = axi_rd_order_e'($urandom_range(0, 2));
-      env.axi.cfg.lat_min     = 0;
-      env.axi.cfg.lat_max     = $urandom_range(0, 80);
-      env.axi.cfg.arready_pct = $urandom_range(30, 100);
-      env.axi.cfg.awready_pct = $urandom_range(30, 100);
-      env.axi.cfg.wready_pct  = $urandom_range(30, 100);
-      env.axi.cfg.rvalid_pct  = $urandom_range(30, 100);
-      env.axi.cfg.bvalid_pct  = $urandom_range(30, 100);
+      mem_random();
       if (!j.randomize()) `uvm_fatal("RAND", "job")
-      `uvm_info("JOB", {"memory: ", env.axi.cfg.convert2string()}, UVM_MEDIUM)
       run_job(j);
     end
   endtask

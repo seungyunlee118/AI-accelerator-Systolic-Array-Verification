@@ -1,6 +1,6 @@
 # SA-GEMM Verification Plan v1.0 (owner: Seungyun Lee)
 
-Traces to `spec.md` v0.3.
+Traces to `spec.md` v0.4.
 
 How to read this document
 - §3 lists every feature in one table. §4 explains the hard ones in detail.
@@ -288,3 +288,4 @@ Formal is used on control blocks with a small state space and many corner cases.
 | Q3 | 5 | Is A_STRIDE < K (overlapping rows) legal? | Yes, rows are read exactly as the formula says. Spec v0.3 §5. | closed |
 | Q4 | 5 | What happens if an address range wraps past 2^32? | Undefined; software must not do it. The TB constrains all regions below 2^32. Spec v0.3 §5. | closed |
 | Q5 | 9 | After a mid-job reset, can stale R/B responses still arrive? | The memory side is reset with the chip, so no. The TB memory model drops all pending transactions on reset. (TB assumption, not a DUT rule.) | closed |
+| Q6 | 9 | `reset_midjob_test` asserted reset for ~1 ns between two rising edges. The DUT's flops reset (asynchronous), but the memory and every clocked observer never saw it, and the memory kept returning data for bursts the DUT had forgotten. What is the minimum reset pulse? | At least two rising edges of `clk`, released synchronously. Spec v0.4 §9. The test now holds reset for 2 edges plus a random extra time. | closed |

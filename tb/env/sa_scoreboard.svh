@@ -22,6 +22,9 @@ class sa_scoreboard extends uvm_component;
   int unsigned jobs_ok, jobs_err, elements_checked;
   // proof that the dangerous DMA situations actually happened (precursor of CG-04)
   int unsigned rd_bursts, rd_ooo, rd_interleaved, rd_ot_hist[5];
+  // output-stage corners seen in checked elements (precursor of CG-03)
+  int unsigned corners [string];
+  protected int unsigned job_corners [string];   // of the current job, added once it passes
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -42,6 +45,7 @@ class sa_scoreboard extends uvm_component;
     job     = j;
     exp_err = expected_err;
     exp_c.delete();
+    job_corners.delete();
     mem.clear_dut_written();
     bursts_this_job = 0;
     if (j.cfg_err() != 0) return;          // nothing is computed for a rejected configuration
@@ -54,6 +58,10 @@ class sa_scoreboard extends uvm_component;
           acc += longint'($signed(mem.read_byte(j.a_base + r * j.a_stride + i))) *
                  longint'($signed(mem.read_byte(j.b_base + i * j.b_stride + c)));
         v = sa_gemm_model::outq(acc, j.req, j.relu, j.shift, j.scale);
+        begin
+          string cn = sa_gemm_model::corner(acc, j.req, j.relu, j.shift, j.scale);
+          if (cn != "") job_corners[cn] = job_corners.exists(cn) ? job_corners[cn] + 1 : 1;
+        end
         for (int b = 0; b < j.e(); b++)
           exp_c[j.c_base + r * j.c_stride + j.e() * c + b] = 8'(v >>> (8 * b));
       end
@@ -78,6 +86,7 @@ class sa_scoreboard extends uvm_component;
       return;
     end
     if (exp_err != 0) begin            // bus error: C is undefined, but no stray writes allowed
+      if (cycles == 0) `uvm_error("SB", {tag, ": CYCLES is 0 after a bus error (it must be updated)"})
       foreach (mem.dut_written[a])
         if (!in_c_area(a)) `uvm_error("SB", $sformatf("%s: write outside C at %08h", tag, a))
       jobs_err++;
@@ -103,6 +112,7 @@ class sa_scoreboard extends uvm_component;
         `uvm_error("SB", $sformatf("%s: byte %08h outside C changed to %02h", tag, a, mem.read_byte(a)))
 
     elements_checked += job.m * job.n;
+    foreach (job_corners[c]) corners[c] = (corners.exists(c) ? corners[c] : 0) + job_corners[c];
     jobs_ok++;
     `uvm_info("SB", $sformatf("%s: OK, %0d cycles, %0d bursts", tag, cycles, bursts_this_job), UVM_LOW)
   endfunction
@@ -116,5 +126,10 @@ class sa_scoreboard extends uvm_component;
                               jobs_ok, elements_checked, jobs_err), UVM_NONE)
     `uvm_info("SB", $sformatf("read bursts %0d: out-of-order %0d, interleaved %0d, issued with 1/2/3/4 in flight: %0d/%0d/%0d/%0d",
                               rd_bursts, rd_ooo, rd_interleaved, rd_ot_hist[1], rd_ot_hist[2], rd_ot_hist[3], rd_ot_hist[4]), UVM_NONE)
+    if (corners.num() != 0) begin
+      string s = "output-stage corners:";
+      foreach (corners[c]) s = {s, $sformatf(" %s=%0d", c, corners[c])};
+      `uvm_info("SB", s, UVM_NONE)
+    end
   endfunction
 endclass

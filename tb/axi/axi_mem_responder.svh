@@ -49,6 +49,15 @@ class axi_mem_responder extends uvm_component;
     vif.rvalid  <= 1'b0;  vif.bvalid  <= 1'b0;
     vif.rid <= '0;  vif.rdata <= '0;  vif.rresp <= '0;  vif.rlast <= 1'b0;
     vif.bid <= '0;  vif.bresp <= '0;
+    // The memory shares the chip's asynchronous reset: drop every VALID/READY as soon as reset
+    // is asserted, not at the next clock edge (the reset-quiet SVA checks this).
+    fork
+      forever begin
+        @(negedge vif.rst_n);
+        vif.arready <= 1'b0;  vif.awready <= 1'b0;  vif.wready <= 1'b0;
+        vif.rvalid  <= 1'b0;  vif.bvalid  <= 1'b0;
+      end
+    join_none
     forever begin
       @(vif.slv_cb);
       cyc++;

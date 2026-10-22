@@ -1,4 +1,4 @@
-# SA-GEMM: Systolic-Array INT8 Matrix-Multiply Accelerator — Design Spec v0.3
+# SA-GEMM: Systolic-Array INT8 Matrix-Multiply Accelerator — Design Spec v0.4
 
 Revision history
 | Version | Change |
@@ -6,6 +6,7 @@ Revision history
 | 0.1 | Initial: single-outstanding DMA, INT32 output |
 | 0.2 | Up to 4 outstanding read bursts with out-of-order / interleaved R data; requantized INT8 output (QCFG, QSCALE); ReLU |
 | 0.3 | Clarifications from vplan review: BUSY/CYCLES on configuration errors, DONE vs ERR, overlapping strides, address range |
+| 0.4 | Reset: minimum assertion time and synchronous release (found by the mid-job reset test) |
 
 ## 1. Overview
 SA-GEMM computes `C = A × B` where `A` is M×K and `B` is K×N signed INT8 matrices. The raw
@@ -156,3 +157,8 @@ an error.
 ## 9. Reset
 `rst_n` is asynchronous. Reset aborts any running job and returns all registers to their
 reset values. The DUT drops all AXI valid signals during reset.
+
+Assertion may happen at any time, without a clock. `rst_n` must then stay low for at least
+two rising edges of `clk`, and it is released synchronously to `clk` (away from a rising edge),
+as a reset synchronizer does. The DUT and every block on the same reset (such as the memory
+behind the AXI4 port) see the reset this way; a pulse shorter than that is not a valid reset.

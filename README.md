@@ -52,8 +52,13 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] Formal (SymbiYosys): CSR block proven by k-induction against an independent shadow model
       (AXI4-Lite protocol, SLVERR decode, read values, byte strobes, W1C race, irq, START);
       all covers reached; 10/10 injected bugs killed with counterexample traces
-- [ ] Error/reset/back-to-back tests, coverage model, regression script, DMA ID formal proof
-- [ ] Regression, coverage closure, mutation campaign
+- [x] All 17 vplan tests: error (config, bus), mid-job reset in every phase, back-to-back with
+      START/config writes while busy, dimension/edge/stride/quantization corners, out-of-order,
+      back-pressure, 4 KB; DMA checker (read windows, no new burst after an error, BUSY timing)
+- [x] Python regression runner (compile once, parallel runs, JUnit XML): 17 tests x 20 seeds =
+      340 runs pass in about 1 minute; mutation runner: 16/16 injected bugs killed by their tests
+- [x] Spec v0.4: minimum reset pulse (found by the mid-job reset test, vplan Q6)
+- [ ] Functional coverage model (CG-01..09) and closure, DMA ID formal proof, ARRAY_N = 8
 
 ## Workflow
 Code is edited on a laptop and simulated on a Linux server with Xcelium.
@@ -70,6 +75,14 @@ make                          # csr_reset_test, seed 1 (CSR block-level testbenc
 make TB=top TEST=gemm_rand_test SEED=3 PLUSARGS=+JOBS=40   # full-chip testbench
 make TEST=csr_reset_test SEED=7 VERB=UVM_HIGH
 make GUI=1                    # open the run in SimVision
+```
+
+Regression and mutation (run inside `sim/`):
+```bash
+python3 regress.py                       # every test, seeds 1..4, 6 at a time
+python3 regress.py --seeds 20 -j 12      # sign-off depth
+python3 regress.py -t err_bus_test --seed-list 7 42
+python3 mutate.py                        # inject each bug of mutate.py; its tests must fail
 ```
 
 Smoke tests (run inside `sim/`):

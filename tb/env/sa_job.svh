@@ -1,6 +1,16 @@
 // One GEMM job: everything software programs before START. Randomizing it with the default
 // constraints gives a legal job; tests turn constraints off or override fields for corner and
 // error cases.
+
+// How the test fills A and B (vplan F-DP-04, F-OUT-02/03).
+//   DATA_RAND     random bytes; the first byte of every row holds the row index (unique rows)
+//   DATA_SMALL    values -4..4 (plus the row index byte): many exact .5 ties after the shift
+//   DATA_MAX      every byte -128: the largest positive sum, K * 16384
+//   DATA_EXTREME  every byte -128 or +127 at random: huge positive and negative sums
+//   DATA_SAT      A from {+-1, +-2, +-3}, B from {127, -128, +-64, +-43}: with K = 1 the products
+//                 land exactly on the saturation edges (128 = -1 x -128, -129 = 3 x -43)
+typedef enum {DATA_RAND, DATA_SMALL, DATA_MAX, DATA_EXTREME, DATA_SAT} sa_data_e;
+
 class sa_job extends uvm_object;
   `uvm_object_utils(sa_job)
 
@@ -10,6 +20,7 @@ class sa_job extends uvm_object;
   rand bit [31:0]   a_base, b_base, c_base;
   rand int unsigned a_stride, b_stride, c_stride;
   rand int unsigned a_gap, b_gap, c_gap;          // extra 8-byte words between rows
+  rand sa_data_e    data;
 
   constraint c_dims  { m inside {[1:64]};  n inside {[1:64]};  k inside {[1:64]}; }
   constraint c_quant { shift inside {[0:31]};  scale inside {[0:65535]}; }
@@ -26,6 +37,7 @@ class sa_job extends uvm_object;
     c_base inside {[32'h0008_0000 : 32'h0008_0FF8]};  c_base[2:0] == 3'b0;
   }
   constraint c_order { solve m, n, k, req, a_gap, b_gap, c_gap before a_stride, b_stride, c_stride; }
+  constraint c_data  { soft data == DATA_RAND; }
 
   function new(string name = "sa_job");
     super.new(name);
@@ -45,8 +57,9 @@ class sa_job extends uvm_object;
   endfunction
 
   virtual function string convert2string();
-    return $sformatf("M=%0d N=%0d K=%0d %s relu=%0b shift=%0d scale=%0d A=%08h/%0d B=%08h/%0d C=%08h/%0d",
+    return $sformatf("M=%0d N=%0d K=%0d %s relu=%0b shift=%0d scale=%0d A=%08h/%0d B=%08h/%0d C=%08h/%0d%s",
                      m, n, k, req ? "INT8" : "INT32", relu, shift, scale,
-                     a_base, a_stride, b_base, b_stride, c_base, c_stride);
+                     a_base, a_stride, b_base, b_stride, c_base, c_stride,
+                     (data == DATA_RAND) ? "" : {" data=", data.name()});
   endfunction
 endclass

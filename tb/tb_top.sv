@@ -5,17 +5,25 @@ module tb_top;
   import sa_top_tb_pkg::*;
 
   logic clk = 1'b0;
-  logic rst_n;
+  logic por_n;                           // power-on reset
+  wire  rst_n;
   always #5 clk = ~clk;                  // 100 MHz
 
   initial begin
-    rst_n = 1'b0;
-    #47 rst_n = 1'b1;
+    por_n = 1'b0;
+    #47 por_n = 1'b1;
   end
 
   axil_if   axil (.clk(clk), .rst_n(rst_n));
   axi_if    axi  (.clk(clk), .rst_n(rst_n));
   sa_sys_if sys  (.clk(clk), .rst_n(rst_n));
+
+  // Tests can also assert the (asynchronous) reset in the middle of a job through sys.rst_req.
+  assign rst_n = por_n && !sys.rst_req;
+
+  // White-box probes (see sa_sys_if): the controller's BUSY and state.
+  assign sys.busy       = dut.busy;
+  assign sys.ctrl_state = dut.u_ctrl.state;
 
   sa_top #(.ARRAY_N(4)) dut (
     .clk            (clk),
