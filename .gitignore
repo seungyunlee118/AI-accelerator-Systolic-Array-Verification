@@ -16,3 +16,6 @@ xmsim.log
 .simvision/
 cov_work/
 *.vcd
+
+# PeakRDL HTML register docs (regenerate with ral/gen.sh)
+docs/regs/
