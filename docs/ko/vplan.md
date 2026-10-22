@@ -240,6 +240,15 @@
 
 seed: 매일 돌리는 regression에서는 테스트마다 seed 4개 이상, sign-off 전에는 seed 20개.
 
+### Formal 증명 (SymbiYosys, `formal/`)
+시뮬레이션은 테스트가 우연히 만든 입력 순서만 확인하지만, 증명은 가능한 모든 입력 순서를 확인해요.
+상태 공간이 작고 코너 케이스가 많은 제어 블록에 formal을 써요.
+
+| 증명 | 블록 | 모든 입력 순서에 대해 증명하는 것 | 기능 | 상태 |
+|---|---|---|---|---|
+| `csr` | `sa_csr` | AXI4-Lite slave 프로토콜 (B/R은 받아갈 때까지 유지, 요청 뒤에만 응답, AW/W 순서 무관); offset별 OKAY/SLVERR; 모든 레지스터 읽기 값; byte lane별로 쓰기 가능한 비트만 쓰기; 같은 cycle의 clear보다 이벤트가 이기는 W1C; `irq`; START 펄스는 lane 0 필요 | F-CSR-02..05, F-CSR-06 (START 부분), F-CSR-08 | k-induction 통과; 버그 mutant 10/10 잡음, 안전한 변경 1개 증명 |
+| `dma_ids` | `sa_dma_rd` ID 관리 | outstanding 읽기 ≤ 4, RLAST 전에 ARID 재사용 없음 | F-DMA-04 | 예정 |
+
 ## 8. Sign-off 기준 (검증 완료 조건)
 - **Functional coverage:** P0 커버그룹은 모두 100%. P1은 100%이거나, 리뷰를 거친 waiver(예외 처리)가 있어야 함.
 - **Code coverage:** statement와 branch ≥ 95%, toggle ≥ 90%. 빠진 부분은 모두 이유를 설명하거나 waiver 처리.
@@ -247,6 +256,8 @@ seed: 매일 돌리는 regression에서는 테스트마다 seed 4개 이상, sig
 - **Regression:** 모든 테스트 × seed 20개가 UVM_ERROR 0, UVM_FATAL 0, SVA 실패 0으로 통과.
 - **버그:** 열린 P0/P1 버그 없음. 고친 버그마다 수정 전 RTL에서는 실패하는 테스트가 있어야 함.
 - **테스트벤치 품질:** mutation 캠페인에서 동작이 다른(non-equivalent) mutant를 95% 이상 잡음.
+- **Formal:** 모든 증명이 PASS로 끝나야 함 (UNKNOWN은 안 됨). 모든 cover에 도달해야 하고 (vacuous 증명 아님),
+  mutant 스크립트가 버그 mutant를 모두 잡아야 함.
 
 ## 9. 열린 질문 (설계자에게)
 | # | 스펙 § | 질문 | 답 (설계자) | 상태 |

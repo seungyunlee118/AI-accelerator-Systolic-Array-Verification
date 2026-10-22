@@ -32,6 +32,7 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 | `tb/smoke/`     | Designer smoke tests |
 | `docs/bug_log.md` | RTL bugs found by verification |
 | `sim/`          | Simulation run directory (outputs are git-ignored) |
+| `formal/`       | SymbiYosys proofs (properties, `.sby` scripts, mutant check) |
 | `sync.sh`       | Copies the repo to the Xcelium server |
 
 ## Status
@@ -48,7 +49,10 @@ Full details are in [`docs/spec.md`](docs/spec.md).
       latency, back-pressure, error injection), AXI4 + DMA-rule SVA, SV golden model, job scoreboard
       (C bytes, write containment, sentinel, status/irq/CYCLES); `gemm_smoke_test` and
       `gemm_rand_test` pass (3 seeds, ~66k elements); 6 injected RTL bugs all caught
-- [ ] Error/reset/back-to-back tests, coverage model, regression script, formal
+- [x] Formal (SymbiYosys): CSR block proven by k-induction against an independent shadow model
+      (AXI4-Lite protocol, SLVERR decode, read values, byte strobes, W1C race, irq, START);
+      all covers reached; 10/10 injected bugs killed with counterexample traces
+- [ ] Error/reset/back-to-back tests, coverage model, regression script, DMA ID formal proof
 - [ ] Regression, coverage closure, mutation campaign
 
 ## Workflow
@@ -79,3 +83,11 @@ xrun -sv ../rtl/sa_pe.sv ../rtl/sa_array.sv ../rtl/sa_outq.sv ../rtl/sa_csr.sv \
          ../tb/smoke/tb_sa_top.sv
 ```
 On this server Cadence tools need 64-bit mode: `export CDS_AUTO_64BIT=ALL` (or pass `-64bit`).
+
+Formal proofs (run on the laptop with the open-source [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build)):
+```bash
+source ~/oss-cad-suite/environment
+cd formal/csr
+sby -f sa_csr.sby          # tasks "prove" (k-induction) and "cover" (each cover reachable)
+python3 mutants.py         # put 10 bugs into a copy of the RTL; the proof must fail on each
+```

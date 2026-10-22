@@ -69,14 +69,14 @@ module sa_csr (
                                         logic [31:0] mask);
     logic [31:0] lm;
     lm = lane_mask(strb) & mask;
-    return (old & ~lm) | (wd & lm);
+    merge = (old & ~lm) | (wd & lm);
   endfunction
 
   function automatic logic is_mapped(logic [7:0] a);
     case (a)
       A_CTRL, A_STATUS, A_IRQ_EN, A_IRQ_ST, A_DIMS, A_ABASE, A_ASTR, A_BBASE, A_BSTR,
-      A_CBASE, A_CSTR, A_CYCLES, A_VER, A_QCFG, A_QSCALE: return 1'b1;
-      default: return 1'b0;
+      A_CBASE, A_CSTR, A_CYCLES, A_VER, A_QCFG, A_QSCALE: is_mapped = 1'b1;
+      default: is_mapped = 1'b0;
     endcase
   endfunction
 
@@ -86,10 +86,12 @@ module sa_csr (
   logic [31:0] w_data_q;
   logic [3:0]  w_strb_q;
   logic        do_write;
+  logic        wr_mapped;      // the latched write address is a register
 
   assign s_axil_awready = !aw_have && !s_axil_bvalid;
   assign s_axil_wready  = !w_have  && !s_axil_bvalid;
   assign do_write       = aw_have && w_have && !s_axil_bvalid;
+  assign wr_mapped      = is_mapped(aw_addr_q);
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -114,7 +116,7 @@ module sa_csr (
         aw_have       <= 1'b0;
         w_have        <= 1'b0;
         s_axil_bvalid <= 1'b1;
-        s_axil_bresp  <= is_mapped(aw_addr_q) ? 2'b00 : 2'b10;
+        s_axil_bresp  <= wr_mapped ? 2'b00 : 2'b10;
       end else if (s_axil_bvalid && s_axil_bready) begin
         s_axil_bvalid <= 1'b0;
       end
@@ -216,4 +218,10 @@ module sa_csr (
   assign shift    = r_qcfg[12:8];
   assign scale    = r_qscale[15:0];
   assign irq      = |(r_irq_st[1:0] & r_irq_en[1:0]);
+
+  // Formal properties (formal/csr). Open-source Yosys has no `bind`, so they are included here
+  // only when FORMAL is defined; simulators never see them.
+`ifdef FORMAL
+  `include "sa_csr_props.svh"
+`endif
 endmodule

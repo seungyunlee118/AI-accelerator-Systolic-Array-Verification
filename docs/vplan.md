@@ -260,6 +260,15 @@ project, where `$error` assertions failed silently).
 
 Seeds: every test runs at least 4 seeds in the daily regression and 20 seeds before sign-off.
 
+### Formal proofs (SymbiYosys, `formal/`)
+Simulation checks the input sequences a test happens to generate; a proof checks all of them.
+Formal is used on control blocks with a small state space and many corner cases.
+
+| Proof | Block | What is proven for every input sequence | Features | Status |
+|---|---|---|---|---|
+| `csr` | `sa_csr` | AXI4-Lite slave protocol (B/R held until taken, a response only after its request, AW/W in any order); OKAY/SLVERR per offset; every read value; byte-lane writes of writable bits only; W1C with an event winning over a same-cycle clear; `irq`; START pulse needs lane 0 | F-CSR-02..05, F-CSR-06 (START part), F-CSR-08 | k-induction pass; 10/10 bug mutants killed, 1 safe change proven |
+| `dma_ids` | `sa_dma_rd` ID manager | ≤ 4 reads outstanding, no ARID reused before its RLAST | F-DMA-04 | planned |
+
 ## 8. Sign-off criteria
 - **Functional coverage:** every P0 covergroup at 100%; P1 at 100% or with a reviewed waiver.
 - **Code coverage:** statement and branch ≥ 95%, toggle ≥ 90%, every gap explained or
@@ -268,6 +277,8 @@ Seeds: every test runs at least 4 seeds in the daily regression and 20 seeds bef
 - **Regression:** all tests × 20 seeds pass with 0 UVM_ERROR, 0 UVM_FATAL, 0 SVA failures.
 - **Bugs:** no open P0/P1 bugs; every fixed bug has a test that fails without the fix.
 - **Testbench quality:** mutation campaign kills ≥ 95% of non-equivalent mutants.
+- **Formal:** every proof ends in PASS (not UNKNOWN), every cover is reached (no vacuous
+  proof), and its mutant script kills every bug mutant.
 
 ## 9. Open questions (to the designer)
 | # | Spec § | Question | Answer (designer) | Status |

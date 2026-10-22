@@ -1,0 +1,25 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+prove: depth 8
+cover: mode cover
+cover: depth 16
+
+[engines]
+smtbmc yices
+
+[script]
+read -formal sa_csr.sv
+hierarchy -top sa_csr
+# Keep constant case tables (is_mapped) as logic. proc_rom would turn them into a ROM memory,
+# and the solver treats memory contents as state that is fixed only at the initial cycle, so the
+# induction step could start with a "ROM" holding arbitrary values (spurious failure).
+proc -norom
+prep -top sa_csr
+
+[files]
+../../rtl/sa_csr.sv
+sa_csr_props.svh
