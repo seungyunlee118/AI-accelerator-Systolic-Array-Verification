@@ -13,3 +13,6 @@
 -nocopyright
 // Known harmless on this server: DPI export stub cannot link without glibc-devel.
 -nowarn DPIEXP
+// Sample covergroups. Without it Xcelium never samples them (get_coverage() stays 0%) unless
+// functional coverage instrumentation (-coverage U) is on; found by sa_cov_db's self-check.
+-cov_cgsample

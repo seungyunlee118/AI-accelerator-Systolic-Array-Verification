@@ -217,6 +217,29 @@
 | CG-08 reset | 리셋마다 | 단계 {대기, A 읽기, B 읽기, 계산, C 쓰기}, 리셋 때 outstanding | 단계 × outstanding | 100% |
 | CG-09 array (P2) | 작업마다 | ARRAY_N 4와 8 | — | 100% |
 
+**구현.** `tb/cov/sa_csr_cov.svh` (CG-01), `sa_csr_race_cov.svh` (CG-01r, W1C 경쟁, CSR 테스트벤치),
+`sa_top_cov.svh` (CG-02..09). 서버에 IMC가 없어서 Cadence 툴로는 여러 run의 covergroup 결과를 합칠 수 없어요.
+그래서 각 collector가 같은 라벨로 `sa_cov_db`에도 bin을 세고, run마다 그 수를 파일로 내보내고(`+COV_DUMP`),
+`sim/covmerge.py`가 regression의 통과한 run들을 합쳐요(`regress.py`가 실행). run이 끝날 때 이 수와 각 covergroup의
+`get_inst_coverage()` 값을 비교해서, 다르면 테스트가 실패해요. 그래서 두 bin 목록이 몰래 어긋날 수 없어요.
+도달할 수 없는 bin은 모델에서 `ignore_bins`로, 도달은 가능하지만 아직 목표가 아닌 bin은 이유와 함께 `sim/cov_waivers.txt`에 적어요.
+
+### 6.1 Closure 기록
+첫 병합 결과 (테스트 17개 x seed 4개): 98.0%, 구멍 7개.
+
+| 구멍 | 진단 | 조치 |
+|---|---|---|
+| CG-01 `cp_alias` [1:0]만 더러움 | aliasing 테스트가 항상 [31:8]과 [1:0]을 같이 더럽혔음 | `csr_access_test`가 high만 / low만 / 둘 다를 돌아가며 사용 |
+| CG-04 `x_ot_ooo` outstanding 1 x 순서 바뀜 | 불가능: 혼자 나간 버스트는 앞지를 이전 버스트가 없음 | `ignore_bins` |
+| CG-05 `x_wstrb_mode` 상위 절반 x INT32 | 불가능: INT32 행은 8바이트 경계에서 시작하는 온전한 워드 | `ignore_bins` |
+| CG-05 `cp_awlen` 3비트 이상, `x_wstrb_mode` full x INT8 | ARRAY_N = 8 (32 B / 8 B 타일 행)에서만 도달 | ARRAY_N = 8 빌드까지 waiver |
+| CG-06 `x_rd_phase_inflight` A 로드 x 진행 중 1개 | 읽기 에러를 항상 느린 메모리(진행 중 4개)로 넣었음 | `err_bus_test`: 버스트 하나짜리 A, B 행렬 추가 |
+| CG-08 `x_phase_inflight` B 로드 x 진행 중 2개 | 리셋을 단계만 겨냥했음 | `reset_midjob_test`가 진행 중 읽기 0..4개를 기다림 |
+
+결과: 100% (waiver 3개, 모두 ARRAY_N = 8), seed 4개와 20개 모두.
+도중에 self-check가 Xcelium은 `-cov_cgsample` (또는 `-coverage U`) 없이는 covergroup을 전혀 샘플링하지 않는다는 걸
+찾았어요: 모든 covergroup이 0%를 보고했는데 bin 수는 그렇지 않았음.
+
 ## 7. 테스트 목록
 | 테스트 | 목적 | 주요 기능 |
 |---|---|---|
@@ -252,7 +275,9 @@ seed: 매일 돌리는 regression에서는 테스트마다 seed 4개 이상, sig
 ## 8. Sign-off 기준 (검증 완료 조건)
 - **Functional coverage:** P0 커버그룹은 모두 100%. P1은 100%이거나, 리뷰를 거친 waiver(예외 처리)가 있어야 함.
 - **Code coverage:** statement와 branch ≥ 95%, toggle ≥ 90%. 빠진 부분은 모두 이유를 설명하거나 waiver 처리.
-  서버에 IMC가 없어서, 병합 툴을 쓸 수 있을 때까지는 run별 수치와 bin hit을 합치는 스크립트를 써요.
+  **미해결 (툴):** Xcelium은 데이터베이스를 모으지만(`make CODECOV=1`), 읽거나 합치려면 IMC가 필요한데 서버에 없어요
+  (2026-10-22 확인: `imc` 없음, `iccr` 폴더는 빈 껍데기, UCIS XML 출력 없음). IMC를 쓸 수 있을 때까지는
+  functional coverage와 mutation 캠페인으로 테스트벤치의 충분함을 판단해요.
 - **Regression:** 모든 테스트 × seed 20개가 UVM_ERROR 0, UVM_FATAL 0, SVA 실패 0으로 통과.
 - **버그:** 열린 P0/P1 버그 없음. 고친 버그마다 수정 전 RTL에서는 실패하는 테스트가 있어야 함.
 - **테스트벤치 품질:** mutation 캠페인에서 동작이 다른(non-equivalent) mutant를 95% 이상 잡음.

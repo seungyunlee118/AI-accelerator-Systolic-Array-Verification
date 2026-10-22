@@ -47,12 +47,15 @@ class csr_access_test extends sa_base_test;
     expect_resp("write to 0x54", resp, 2'b10);
     env.regmodel.A_BASE.mirror(st, UVM_CHECK);
 
-    // 3) aliased addresses
+    // 3) aliased addresses. The write alias rotates over the registers: only [31:8] dirty,
+    //    only [1:0] dirty, or both (coverage CG-01 cp_alias showed "only [1:0]" was never hit).
     foreach (regs[i]) begin
+      bit [23:0] hi = (i % 3 != 1) ? 24'($urandom_range(1, 24'hFF_FFFF)) : 24'h0;
+      bit [1:0]  lo = (i % 3 != 0) ? 2'($urandom_range(1, 3))             : 2'b00;
       rg      = regs[i];
       a       = rg.get_address();
-      alias_w = {24'($urandom), a[7:2], 2'($urandom)};      // random [31:8] and [1:0]
-      alias_r = {24'($urandom), a[7:2], 2'($urandom)};
+      alias_w = {hi, a[7:2], lo};
+      alias_r = {24'($urandom), a[7:2], 2'($urandom)};      // random [31:8] and [1:0]
       if (rw_mask(rg) != 0) begin
         v   = $urandom;
         exp = v & rw_mask(rg);

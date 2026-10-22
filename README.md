@@ -58,7 +58,9 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] Python regression runner (compile once, parallel runs, JUnit XML): 17 tests x 20 seeds =
       340 runs pass in about 1 minute; mutation runner: 16/16 injected bugs killed by their tests
 - [x] Spec v0.4: minimum reset pulse (found by the mid-job reset test, vplan Q6)
-- [ ] Functional coverage model (CG-01..09) and closure, DMA ID formal proof, ARRAY_N = 8
+- [x] Functional coverage model CG-01..09 (covergroups + bin counts merged by `sim/covmerge.py`,
+      since the server has no IMC); closure from 98.0% to 100% (3 bins waived until ARRAY_N = 8)
+- [ ] DMA ID formal proof, ARRAY_N = 8; code coverage report (needs IMC)
 
 ## Workflow
 Code is edited on a laptop and simulated on a Linux server with Xcelium.

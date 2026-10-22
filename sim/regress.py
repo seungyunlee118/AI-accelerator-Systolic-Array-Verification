@@ -10,8 +10,9 @@ time, each in its own directory. Run on the server, inside sim/:
   python3 regress.py --seed-list 7 42        # exact seeds
   python3 regress.py -j 8                    # simulations at the same time (default 6)
 
-Output goes to regress/<date_time>/: one log per run, summary.txt, and results.xml (JUnit XML,
-the format CI servers read). The exit code is 0 only if every run passed.
+Output goes to regress/<date_time>/: one log per run, summary.txt, results.xml (JUnit XML,
+the format CI servers read), and coverage.txt: functional coverage merged over the passing runs
+(covmerge.py, with the waivers in cov_waivers.txt). The exit code is 0 only if every run passed.
 A run passes when its log has "TEST PASSED" and no Xcelium *E/*F message.
 """
 import argparse
@@ -22,6 +23,8 @@ import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
+
+import covmerge
 
 SIM = os.path.dirname(os.path.abspath(__file__))
 
@@ -71,7 +74,7 @@ def run_one(lib, test, seed, plusargs, rundir, timeout=3600):
     os.makedirs(rundir, exist_ok=True)
     log = os.path.join(rundir, "run.log")
     cmd = ["xrun", "-64bit", "-R", "-xmlibdirname", lib, "-nocopyright", "-svseed", str(seed),
-           "+UVM_TESTNAME=" + test, "+UVM_VERBOSITY=UVM_LOW", "-l", log] + plusargs
+           "+UVM_TESTNAME=" + test, "+UVM_VERBOSITY=UVM_LOW", "+COV_DUMP=cov.txt", "-l", log] + plusargs
     t0 = time.time()
     try:
         subprocess.call(cmd, cwd=rundir, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
@@ -170,6 +173,17 @@ def main():
     print("\n" + report)
     open(os.path.join(out, "summary.txt"), "w").write(report + "\n")
     write_junit(results, os.path.join(out, "results.xml"))
+
+    # functional coverage of the passing runs only
+    cov_files = {}
+    for r in results:
+        path = os.path.join(os.path.dirname(r["log"]), "cov.txt")
+        if r["passed"] and os.path.exists(path):
+            cov_files.setdefault(r["test"], []).append(path)
+    if cov_files:
+        cov_report, total = covmerge.merge(cov_files, covmerge.read_waivers(os.path.join(SIM, "cov_waivers.txt")))
+        open(os.path.join(out, "coverage.txt"), "w").write(cov_report + "\n")
+        print("\nfunctional coverage %.1f%% (details: %s)" % (total, os.path.join(out, "coverage.txt")))
     sys.exit(1 if n_fail else 0)
 
 

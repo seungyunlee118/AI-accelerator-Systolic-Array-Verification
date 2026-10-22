@@ -6,6 +6,10 @@
 //    every configuration register with another job's values. The running job must finish
 //    with the configuration it started with (the scoreboard predicts from the original), and
 //    the extra START must not launch a second job afterwards.
+//  - Pipelined jobs, the way a driver keeps the accelerator busy: while job A runs, software
+//    prepares job B completely (memory and every register), and B starts with a single CTRL
+//    write right after A's interrupt is cleared (CG-07 back-to-back). B's buffers live 16 MB
+//    away from A's, so preparing B cannot disturb A.
 class b2b_jobs_test extends sa_top_base_test;
   `uvm_component_utils(b2b_jobs_test)
 
@@ -55,10 +59,34 @@ class b2b_jobs_test extends sa_top_base_test;
 
       start_job(j);
       if (do_meddle) meddle(j);
-      wait_irq(j, ok);
+      wait_done(ok);
       if (!ok) return;
       finish_job();
       if (do_meddle) expect_idle(300, "START written while BUSY must be ignored");
+    end
+
+    for (int i = 0; i < 6; i++) begin
+      sa_job a = sa_job::type_id::create("a");
+      sa_job b = sa_job::type_id::create("b");
+      bit    ok;
+      mem_random(40, 50);
+      if (!a.randomize() with { m * n * k >= 8192; }) `uvm_fatal("RAND", "job")
+      if (!b.randomize()) `uvm_fatal("RAND", "job")
+      b.a_base += 32'h0100_0000;
+      b.b_base += 32'h0100_0000;
+      b.c_base += 32'h0100_0000;
+
+      start_job(a);
+      wait (sys.busy === 1'b1);
+      prepare_memory(b);
+      program_job(b);                                  // config writes while A is busy
+      wait_done(ok);
+      if (!ok) return;
+      finish_job();
+      start_programmed_job(b);                         // one CTRL write: back-to-back
+      wait_done(ok);
+      if (!ok) return;
+      finish_job();
     end
   endtask
 endclass

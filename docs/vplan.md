@@ -237,6 +237,32 @@ project, where `$error` assertions failed silently).
 | CG-08 reset | each reset | phase {idle, A load, B load, compute, C write}; outstanding at reset | phase × outstanding | 100% |
 | CG-09 array (P2) | per job | ARRAY_N 4 and 8 | — | 100% |
 
+**Implementation.** `tb/cov/sa_csr_cov.svh` (CG-01), `sa_csr_race_cov.svh` (CG-01r, the W1C race,
+CSR testbench), `sa_top_cov.svh` (CG-02..09). The lab server has no IMC, so covergroup results
+cannot be merged across runs with Cadence tools. Each collector therefore also counts its bins
+in `sa_cov_db` with the same labels, every run dumps the counts (`+COV_DUMP`), and
+`sim/covmerge.py` merges the passing runs of a regression (run by `regress.py`). At the end of
+every run the counts are compared with each covergroup's own `get_inst_coverage()`; a
+difference fails the test, so the two bin lists cannot drift apart. Unreachable bins are
+`ignore_bins` in the model; bins that are reachable but not yet targeted are listed with a
+reason in `sim/cov_waivers.txt`.
+
+### 6.1 Closure log
+First merged run (17 tests x 4 seeds): 98.0%, 7 holes.
+
+| Hole | Diagnosis | Action |
+|---|---|---|
+| CG-01 `cp_alias` only [1:0] dirty | Aliasing test always dirtied [31:8] and [1:0] together | `csr_access_test` rotates high-only / low-only / both |
+| CG-04 `x_ot_ooo` 1 outstanding x out of order | Impossible: a burst issued alone has no older burst to overtake | `ignore_bins` |
+| CG-05 `x_wstrb_mode` high half x INT32 | Impossible: INT32 rows are whole words from an 8-byte boundary | `ignore_bins` |
+| CG-05 `cp_awlen` 3+ beats, `x_wstrb_mode` full x INT8 | Only reachable with ARRAY_N = 8 (32 B / 8 B tile rows) | waived until the ARRAY_N = 8 build |
+| CG-06 `x_rd_phase_inflight` A load x 1 in flight | Read errors were always injected with a slow memory (4 in flight) | `err_bus_test`: one-burst A and B matrices |
+| CG-08 `x_phase_inflight` B load x 2 in flight | Resets were aimed at a phase only | `reset_midjob_test` waits for 0..4 reads in flight |
+
+Result: 100% (3 waived bins, all ARRAY_N = 8), at 4 and at 20 seeds.
+On the way, the self-check found that Xcelium does not sample covergroups at all without
+`-cov_cgsample` (or `-coverage U`): every covergroup reported 0% while the bin counts did not.
+
 ## 7. Test list
 | Test | Purpose | Main features |
 |---|---|---|
@@ -272,8 +298,10 @@ Formal is used on control blocks with a small state space and many corner cases.
 ## 8. Sign-off criteria
 - **Functional coverage:** every P0 covergroup at 100%; P1 at 100% or with a reviewed waiver.
 - **Code coverage:** statement and branch ≥ 95%, toggle ≥ 90%, every gap explained or
-  waived. The server has no IMC, so per-run numbers plus a script that merges bin hits are
-  used until a merge tool is available.
+  waived. **Open (tool):** Xcelium collects the database (`make CODECOV=1`), but reading or
+  merging it needs IMC, which the lab server does not have (checked 2026-10-22: no `imc`, the
+  `iccr` directory is a stub, no UCIS XML export). Until an IMC seat is available, testbench
+  adequacy is measured by functional coverage plus the mutation campaign.
 - **Regression:** all tests × 20 seeds pass with 0 UVM_ERROR, 0 UVM_FATAL, 0 SVA failures.
 - **Bugs:** no open P0/P1 bugs; every fixed bug has a test that fails without the fix.
 - **Testbench quality:** mutation campaign kills ≥ 95% of non-equivalent mutants.

@@ -5,6 +5,8 @@
 // write outside C (scoreboard). The next job must succeed.
 // Read errors hit the first beat, the last beat, or a random beat, with long latency and
 // out-of-order/interleaved returns so that up to 4 reads are outstanding when it happens.
+// Then one-burst matrices (A with M = 1, K <= 8; B with K = 1, N <= 8) put the error on a read
+// that is alone in flight (coverage CG-06 showed A load x 1 outstanding was never hit).
 // +JOBS=<n> sets the number of error jobs (default 24).
 class err_bus_test extends sa_top_base_test;
   `uvm_component_utils(err_bus_test)
@@ -50,6 +52,18 @@ class err_bus_test extends sa_top_base_test;
 
       // the error must not stick
       mem_random();
+      if (!good.randomize() with { m <= 16; n <= 16; k <= 16; }) `uvm_fatal("RAND", "job")
+      run_job(good);
+    end
+    for (int i = 0; i < 4; i++) begin
+      bit a_side = (i % 2 == 0);
+      mem_random(20);
+      if (!j.randomize() with { a_side -> (m == 1 && k <= 8); !a_side -> (k == 1 && n <= 8); })
+        `uvm_fatal("RAND", "job")
+      // A's only beat is beat 1; B's only beat is the last one of the job
+      env.axi.cfg.rd_err_at_beat = a_side ? 1 : j.m * ((j.k + 7) / 8) + j.k * ((j.n + 7) / 8);
+      run_job(j, 4'd3);
+      if (env.dma_chk.err_rd_ot inside {[1:4]}) ot_hist[env.dma_chk.err_rd_ot]++;
       if (!good.randomize() with { m <= 16; n <= 16; k <= 16; }) `uvm_fatal("RAND", "job")
       run_job(good);
     end

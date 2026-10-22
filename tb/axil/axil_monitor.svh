@@ -21,19 +21,26 @@ class axil_monitor extends uvm_monitor;
   virtual task run_phase(uvm_phase phase);
     bit [31:0] aw_q[$], ar_q[$], w_data_q[$];
     bit [3:0]  w_strb_q[$];
+    longint    aw_cyc_q[$], w_cyc_q[$], cyc;     // handshake cycles, to tell which came first
     axil_item  t;
 
     forever begin
       @(vif.mon_cb);
+      cyc++;
       if (vif.rst_n !== 1'b1) begin
         aw_q.delete(); ar_q.delete(); w_data_q.delete(); w_strb_q.delete();
+        aw_cyc_q.delete(); w_cyc_q.delete();
         continue;
       end
 
-      if (vif.mon_cb.awvalid && vif.mon_cb.awready) aw_q.push_back(vif.mon_cb.awaddr);
+      if (vif.mon_cb.awvalid && vif.mon_cb.awready) begin
+        aw_q.push_back(vif.mon_cb.awaddr);
+        aw_cyc_q.push_back(cyc);
+      end
       if (vif.mon_cb.wvalid && vif.mon_cb.wready) begin
         w_data_q.push_back(vif.mon_cb.wdata);
         w_strb_q.push_back(vif.mon_cb.wstrb);
+        w_cyc_q.push_back(cyc);
       end
       if (vif.mon_cb.bvalid && vif.mon_cb.bready) begin
         if (aw_q.size() == 0 || w_data_q.size() == 0) begin
@@ -45,6 +52,10 @@ class axil_monitor extends uvm_monitor;
           t.data = w_data_q.pop_front();
           t.strb = w_strb_q.pop_front();
           t.resp = vif.mon_cb.bresp;
+          begin
+            longint aw_c = aw_cyc_q.pop_front(), w_c = w_cyc_q.pop_front();
+            t.order = (aw_c < w_c) ? AXIL_AW_FIRST : (w_c < aw_c) ? AXIL_W_FIRST : AXIL_AW_W_SAME;
+          end
           `uvm_info("AXIL_MON", t.convert2string(), UVM_MEDIUM)
           ap.write(t);
         end

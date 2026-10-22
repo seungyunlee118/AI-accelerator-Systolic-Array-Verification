@@ -6,6 +6,7 @@
 #   make VERB=UVM_HIGH                   # more log detail
 #   make GUI=1                           # open the run in SimVision (remote desktop only)
 #   make WAVE=1                          # batch run that records waves.shm (works over ssh)
+#   make CODECOV=1                       # also collect code coverage into cov_work/ (needs IMC to read)
 #   make view                            # open waves.shm in SimVision (remote desktop only)
 #   make TB=top TEST=gemm_rand_test PLUSARGS=+JOBS=40
 #   make regress                         # every test x seeds 1..4, in parallel (regress.py)
@@ -21,6 +22,7 @@ SEED  ?= 1
 VERB  ?= UVM_MEDIUM
 GUI   ?= 0
 WAVE  ?= 0
+CODECOV ?= 0
 PLUSARGS ?=
 ARGS  ?=
 
@@ -32,6 +34,12 @@ OPTS  += -access +rwc -gui
 endif
 ifeq ($(WAVE),1)
 OPTS  += -input waves.tcl
+endif
+ifeq ($(CODECOV),1)
+COVDUT_csr := sa_csr
+COVDUT_top := sa_top
+OPTS  += -coverage b:e:f:t -covdut $(COVDUT_$(strip $(TB))) -covoverwrite -covworkdir cov_work \
+         -covtest $(TEST)_$(SEED)
 endif
 
 .PHONY: run view clean regress mutate
@@ -52,4 +60,4 @@ mutate:
 	python3 mutate.py $(ARGS)
 
 clean:
-	rm -rf xcelium.d logs waves.shm .simvision xrun.history xrun.key xrun.log regress mutants
+	rm -rf xcelium.d logs waves.shm .simvision xrun.history xrun.key xrun.log regress mutants cov_work

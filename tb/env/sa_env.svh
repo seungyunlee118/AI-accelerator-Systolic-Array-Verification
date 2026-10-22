@@ -10,6 +10,9 @@ class sa_env extends uvm_env;
   axi_mem_agent                  axi;
   sa_scoreboard                  sb;
   sa_dma_checker                 dma_chk;
+  sa_cov_db                      cov_db;
+  sa_csr_cov                     csr_cov;   // CG-01
+  sa_top_cov                     cov;       // CG-02 .. CG-09
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -21,6 +24,11 @@ class sa_env extends uvm_env;
     axi  = axi_mem_agent::type_id::create("axi", this);
     sb   = sa_scoreboard::type_id::create("sb", this);
     dma_chk = sa_dma_checker::type_id::create("dma_chk", this);
+    cov_db  = new();
+    csr_cov = sa_csr_cov::type_id::create("csr_cov", this);
+    cov     = sa_top_cov::type_id::create("cov", this);
+    csr_cov.declare(cov_db);
+    cov.declare(cov_db);
 
     regmodel = new("regmodel");
     regmodel.build();
@@ -40,5 +48,20 @@ class sa_env extends uvm_env;
 
     sb.mem = axi.mem;
     axi.mon.ap.connect(sb.axi_export);
+
+    sb.cov      = cov;
+    cov.dma_chk = dma_chk;
+    axi.mon.ap.connect(cov.axi_export);
+    axil.mon.ap.connect(cov.axil_export);
+    axil.mon.ap.connect(csr_cov.analysis_export);
+  endfunction
+
+  // +COV_DUMP=<file>: write this run's bin counts for sim/covmerge.py
+  virtual function void report_phase(uvm_phase phase);
+    string path;
+    super.report_phase(phase);
+    csr_cov.check();
+    cov.check();
+    if ($value$plusargs("COV_DUMP=%s", path)) cov_db.dump(path);
   endfunction
 endclass

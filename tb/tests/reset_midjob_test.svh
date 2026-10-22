@@ -6,7 +6,9 @@
 //  - every register must read its reset value and irq must be low;
 //  - a new job must run correctly (no stale ID table entry, buffer or BUSY survives).
 // The memory model drops everything in flight on reset, like a memory on the same reset.
-// +RESETS=<n> sets the number of resets per phase (default 3).
+// In the load phases each reset also waits for a given number of reads in flight, 0..4
+// (coverage CG-08 showed phase x reads-in-flight was not all reached by random timing).
+// +RESETS=<n> sets the number of resets in the compute and C-write phases (default 3).
 class reset_midjob_test extends sa_top_base_test;
   `uvm_component_utils(reset_midjob_test)
 
@@ -40,7 +42,7 @@ class reset_midjob_test extends sa_top_base_test;
     start_job(good, 4'd3);
     begin
       bit ok;
-      wait_irq(good, ok);
+      wait_done(ok);
     end
     if (!j.randomize() with { m > 1; n > 1; k > 1; shift > 0; scale > 0; req == 1; relu == 1; })
       `uvm_fatal("RAND", "job")
@@ -49,19 +51,22 @@ class reset_midjob_test extends sa_top_base_test;
     run_job(good);
 
     // ---- F-RST-02: reset in each phase of a running job
-    foreach (targets[t])
-      repeat (n_per_phase) begin
+    foreach (targets[t]) begin
+      bit load = targets[t] inside {PH_A_LOAD, PH_B_LOAD};
+      for (int r = 0; r < (load ? 5 : n_per_phase); r++) begin
         bit reached;
         mem_random(120);
         if (!j.randomize() with { m inside {[8:64]}; n inside {[8:64]}; k inside {[8:64]}; })
           `uvm_fatal("RAND", "job")
         start_job(j);
-        wait_phase(targets[t], 200000, reached);
+        if (load) wait_phase_inflight(targets[t], r, 200000, reached);    // r reads in flight
+        else      wait_phase(targets[t], 200000, reached);
         if (!reached) begin
-          `uvm_error("RESET", $sformatf("job never reached phase %s: %s", targets[t].name(), j.convert2string()))
+          `uvm_error("RESET", $sformatf("job never reached phase %s%s: %s", targets[t].name(),
+                                        load ? $sformatf(" with %0d reads in flight", r) : "", j.convert2string()))
           continue;
         end
-        repeat ($urandom_range(0, 40)) @(posedge sys.clk);
+        if (!load) repeat ($urandom_range(0, 40)) @(posedge sys.clk);
         begin
           sa_phase_e at = sa_phase_of(sys.ctrl_state);
           hits[at] = hits.exists(at) ? hits[at] + 1 : 1;
@@ -73,6 +78,7 @@ class reset_midjob_test extends sa_top_base_test;
         if (!good.randomize() with { m <= 24; n <= 24; k <= 24; }) `uvm_fatal("RAND", "job")
         run_job(good);
       end
+    end
 
     begin
       string s = "resets landed in phase:";

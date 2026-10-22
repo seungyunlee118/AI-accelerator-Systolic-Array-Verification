@@ -1,5 +1,7 @@
 // One AXI4-Lite access (read or write) plus timing knobs for the driver.
 typedef enum bit {AXIL_READ, AXIL_WRITE} axil_kind_e;
+// Which half of a write arrived first (filled in by the monitor, for coverage).
+typedef enum {AXIL_AW_FIRST, AXIL_W_FIRST, AXIL_AW_W_SAME} axil_order_e;
 
 class axil_item extends uvm_sequence_item;
   rand axil_kind_e  kind;
@@ -7,6 +9,7 @@ class axil_item extends uvm_sequence_item;
   rand bit [31:0]   data;       // write data, or read data filled in by the driver/monitor
   rand bit [3:0]    strb;       // write byte enables
   bit      [1:0]    resp;       // BRESP / RRESP returned by the DUT
+  axil_order_e      order;      // writes, observed by the monitor
 
   // Timing knobs, in clock cycles. aw_delay vs w_delay decides whether AW or W goes first.
   rand int unsigned aw_delay, w_delay, b_delay, r_delay;
@@ -35,7 +38,7 @@ class axil_item extends uvm_sequence_item;
     axil_item t;
     super.do_copy(rhs);
     if (!$cast(t, rhs)) `uvm_fatal("AXIL_ITEM", "do_copy: wrong type")
-    kind = t.kind;  addr = t.addr;  data = t.data;  strb = t.strb;  resp = t.resp;
+    kind = t.kind;  addr = t.addr;  data = t.data;  strb = t.strb;  resp = t.resp;  order = t.order;
     aw_delay = t.aw_delay;  w_delay = t.w_delay;  b_delay = t.b_delay;  r_delay = t.r_delay;
   endfunction
 endclass

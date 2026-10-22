@@ -3,6 +3,7 @@
 -incdir ../tb/axi
 -incdir ../tb/env
 -incdir ../tb/tests
+-incdir ../tb/cov
 
 ../rtl/sa_pe.sv
 ../rtl/sa_array.sv
@@ -16,6 +17,7 @@
 ../tb/ral/sa_gemm_csr_ral_pkg.sv
 ../tb/axil/axil_if.sv
 ../tb/axil/axil_pkg.sv
+../tb/cov/sa_cov_pkg.sv
 ../tb/axi/axi_if.sv
 ../tb/axi/axi_pkg.sv
 ../tb/env/sa_sys_if.sv

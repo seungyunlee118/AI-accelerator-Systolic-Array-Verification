@@ -17,6 +17,7 @@ class sa_dma_checker extends uvm_component;
   int unsigned n_ar, n_aw;                 // AR / AW handshakes since the start of the test
   int          rd_ot, wr_ot;               // bursts outstanding right now
   int          err_rd_ot;                  // reads outstanding when the job's first read error came
+  sa_phase_e   err_phase;                  // controller phase at the job's first error response
 
   protected sa_job       job;
   protected bit [3:0]    exp_err;
@@ -46,6 +47,7 @@ class sa_dma_checker extends uvm_component;
     armed   = 1;
     win_lo.delete();  win_hi.delete();  need.delete();  got.delete();
     err_resp_seen = 0;  busy_seen = 0;  ar_job = 0;  aw_job = 0;  err_rd_ot = 0;
+    err_phase = PH_IDLE;
     if (j.cfg_err() != 0) return;
     for (int r = 0; r < j.m; r++) add_row(j.a_base + r * j.a_stride, j.k);
     for (int r = 0; r < j.k; r++) add_row(j.b_base + r * j.b_stride, j.n);
@@ -117,6 +119,7 @@ class sa_dma_checker extends uvm_component;
         if (vif.mon_cb.rresp != 2'b00 && !err_resp_seen) begin
           err_resp_seen = 1;
           err_rd_ot     = rd_ot;
+          err_phase     = sa_phase_of(sys.mon_cb.ctrl_state);
         end
         if (vif.mon_cb.rlast) rd_ot--;
       end
@@ -124,7 +127,10 @@ class sa_dma_checker extends uvm_component;
         n_aw++;  aw_job++;  wr_ot++;
       end
       if (vif.mon_cb.bvalid && vif.mon_cb.bready) begin
-        if (vif.mon_cb.bresp != 2'b00) err_resp_seen = 1;
+        if (vif.mon_cb.bresp != 2'b00 && !err_resp_seen) begin
+          err_resp_seen = 1;
+          err_phase     = sa_phase_of(sys.mon_cb.ctrl_state);
+        end
         wr_ot--;
       end
     end

@@ -20,6 +20,14 @@ module tb_top_csr;
 
   // For csr_irq_test: raise an event in exactly the cycle an IRQ_STATUS write takes effect.
   wire race_hit = dut.do_write && (dut.aw_addr_q == 8'h0C);
+  wire evt_done = core.evt_done | (core.race_done & race_hit);
+  wire evt_err  = core.evt_err  | (core.race_err  & race_hit);
+
+  // coverage probes (CG-01r)
+  assign core.w1c_commit   = race_hit;
+  assign core.w1c_clr      = dut.w_data_q[1:0] & {2{dut.w_strb_q[0]}};
+  assign core.dut_evt_done = evt_done;
+  assign core.dut_evt_err  = evt_err;
 
   // core-side outputs of the CSR block that only the full chip uses
   logic        req_en, relu_en;
@@ -51,8 +59,8 @@ module tb_top_csr;
     .start          (core.start),
     .busy           (core.busy),
     .err_code       (core.err_code),
-    .evt_done       (core.evt_done | (core.race_done & race_hit)),
-    .evt_err        (core.evt_err  | (core.race_err  & race_hit)),
+    .evt_done       (evt_done),
+    .evt_err        (evt_err),
     .cycles         (core.cycles),
     .dim_m          (dim_m),
     .dim_n          (dim_n),

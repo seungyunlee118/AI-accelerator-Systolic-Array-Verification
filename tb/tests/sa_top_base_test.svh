@@ -2,7 +2,7 @@
 // run_job() runs one job end to end: fill A/B in memory, paint the sentinel, program the
 // registers through RAL, start, wait for the interrupt, read status, clear the interrupt, and
 // hand everything to the scoreboard and the DMA checker. Its steps are also available on their
-// own (start_job / wait_irq / finish_job) for tests that act while a job is running.
+// own (start_job / wait_done / finish_job) for tests that act while a job is running.
 class sa_top_base_test extends uvm_test;
   `uvm_component_utils(sa_top_base_test)
 
@@ -102,35 +102,69 @@ class sa_top_base_test extends uvm_test;
     env.regmodel.QSCALE.write(st, j.scale);
   endtask
 
-  // Prepare memory, arm the scoreboard and the DMA checker, program the job and write START.
-  // exp_err: the error code the job must end with.
-  task start_job(sa_job j, bit [3:0] exp_err = 0);
-    uvm_status_e st;
+  // The job in flight (set when it is started, used by wait_done and finish_job).
+  protected sa_job    cur_job;
+  protected bit [3:0] cur_err;
+  protected bit       cur_poll;
+  int unsigned        poll_pct = 25;    // run_job: percent of jobs whose completion is polled
+
+  // Memory for job j: the inputs, and the sentinel around C (nothing for a rejected config).
+  function void prepare_memory(sa_job j);
     if (j.cfg_err() == 0) begin
       fill_inputs(j);
       paint_sentinel(j);
     end
+  endfunction
+
+  // Prepare memory, program the job and write START. exp_err: the error code the job must end
+  // with. poll: IRQ_EN = 0, so software polls IRQ_STATUS instead of waiting for the interrupt.
+  task start_job(sa_job j, bit [3:0] exp_err = 0, bit poll = 0);
+    uvm_status_e st;
+    prepare_memory(j);
+    program_job(j);
+    env.regmodel.IRQ_EN.write(st, poll ? 32'h0 : 32'h3);
+    start_programmed_job(j, exp_err, poll);
+  endtask
+
+  // START a job whose memory and registers are already set up (for example programmed while
+  // the previous job was still running): arm the checkers and coverage, write CTRL.START only.
+  task start_programmed_job(sa_job j, bit [3:0] exp_err = 0, bit poll = 0);
+    uvm_status_e st;
+    cur_job  = j;
+    cur_err  = exp_err;
+    cur_poll = poll;
     env.sb.start_job(j, exp_err);
     env.dma_chk.start_job(j, exp_err);
-    program_job(j);
-    env.regmodel.IRQ_EN.write(st, 32'h3);
+    env.cov.job_start(j);
     env.regmodel.CTRL.write(st, 32'h1);
   endtask
 
-  // Wait for the interrupt; ok = 0 (and an error) if it does not come within job_timeout.
-  task wait_irq(sa_job j, output bit ok);
+  // Wait until the job is done: for the interrupt, or (polled job) until IRQ_STATUS shows DONE
+  // or ERR, with irq staying low because IRQ_EN = 0. ok = 0 (and an error) after job_timeout.
+  task wait_done(output bit ok);
     bit timed_out = 0;
     fork
       begin
         fork
-          wait (sys.irq === 1'b1);
+          if (cur_poll) poll_irq_status();
+          else          wait (sys.irq === 1'b1);
           begin #(job_timeout); timed_out = 1; end
         join_any
         disable fork;
       end
     join
     ok = !timed_out;
-    if (timed_out) `uvm_error("JOB", {"no interrupt: ", j.convert2string()})
+    if (timed_out) `uvm_error("JOB", {"job did not finish: ", cur_job.convert2string()})
+  endtask
+
+  task poll_irq_status();
+    uvm_status_e   st;
+    uvm_reg_data_t v;
+    do begin
+      repeat ($urandom_range(5, 40)) @(posedge sys.clk);
+      env.regmodel.IRQ_STATUS.read(st, v);
+      if (sys.irq !== 1'b0) `uvm_error("JOB", "irq is high while IRQ_EN = 0")
+    end while (v[1:0] == 2'b00);
   endtask
 
   // Read the job's results, clear the interrupt (W1C), and check everything.
@@ -145,13 +179,14 @@ class sa_top_base_test extends uvm_test;
     if (sys.irq !== 1'b0) `uvm_error("JOB", "irq still high after clearing IRQ_STATUS")
     env.sb.check_job(status, irq_status, cycles);
     env.dma_chk.end_job();
+    env.cov.job_end(cur_job, cur_err, cur_poll);
   endtask
 
-  // Run one job end to end.
+  // Run one job end to end; poll_pct percent of them are polled instead of interrupt-driven.
   task run_job(sa_job j, bit [3:0] exp_err = 0);
     bit ok;
-    start_job(j, exp_err);
-    wait_irq(j, ok);
+    start_job(j, exp_err, $urandom_range(1, 100) <= poll_pct);
+    wait_done(ok);
     if (ok) finish_job();
   endtask
 
@@ -195,6 +230,18 @@ class sa_top_base_test extends uvm_test;
         `uvm_error("RESET", $sformatf("%s: %s = %08h, reset value is %08h", when, regs[i].get_name(), v, regs[i].get_reset()))
     end
     if (sys.irq !== 1'b0) `uvm_error("RESET", {when, ": irq is high"})
+  endtask
+
+  // Wait until the job is in phase p with exactly n reads in flight (0 if never, in max_cycles).
+  task wait_phase_inflight(sa_phase_e p, int n, int max_cycles, output bit reached);
+    reached = 0;
+    repeat (max_cycles) begin
+      @(sys.mon_cb);
+      if (sa_phase_of(sys.mon_cb.ctrl_state) == p && env.dma_chk.rd_ot == n) begin
+        reached = 1;
+        return;
+      end
+    end
   endtask
 
   // Wait until the job is in phase p; returns 0 if the job never gets there within max_cycles.

@@ -5,12 +5,14 @@ package sa_top_tb_pkg;
   import axil_pkg::*;
   import axi_pkg::*;
   import sa_gemm_csr_ral_pkg::*;
+  import sa_cov_pkg::*;
 
   `include "sa_job.svh"
   `include "sa_phase.svh"
   `include "sa_gemm_model.svh"
   `include "sa_scoreboard.svh"
   `include "sa_dma_checker.svh"
+  `include "sa_top_cov.svh"
   `include "sa_env.svh"
   `include "sa_top_base_test.svh"
   `include "gemm_smoke_test.svh"

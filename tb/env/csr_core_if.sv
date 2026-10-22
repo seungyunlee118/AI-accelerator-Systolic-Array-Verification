@@ -14,6 +14,12 @@ interface csr_core_if (input logic clk, input logic rst_n);
   logic        start;      // from the DUT
   logic        irq;        // from the DUT
 
+  // probes for coverage (CG-01r), connected in tb_top_csr
+  logic        w1c_commit;     // a write to IRQ_STATUS takes effect this cycle
+  logic [1:0]  w1c_clr;        // flags that write clears
+  logic        dut_evt_done;   // events as the DUT sees them
+  logic        dut_evt_err;
+
   int          start_count = 0;
   always @(posedge clk) if (rst_n && start) start_count++;
 endinterface

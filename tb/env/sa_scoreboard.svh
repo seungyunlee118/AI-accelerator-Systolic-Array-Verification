@@ -5,6 +5,8 @@
 // check_job(): called after the job ends. Checks status, interrupt flags and CYCLES, that a
 //              configuration error caused no bus traffic, every C byte, that every byte the DUT
 //              wrote is a C byte, and that the sentinel around C is untouched.
+typedef class sa_top_cov;
+
 class sa_scoreboard extends uvm_component;
   `uvm_component_utils(sa_scoreboard)
 
@@ -25,6 +27,8 @@ class sa_scoreboard extends uvm_component;
   // output-stage corners seen in checked elements (precursor of CG-03)
   int unsigned corners [string];
   protected int unsigned job_corners [string];   // of the current job, added once it passes
+  protected longint      job_acc [$];             // accumulators of the current job, for CG-03
+  sa_top_cov             cov;                     // set by the env
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -46,6 +50,7 @@ class sa_scoreboard extends uvm_component;
     exp_err = expected_err;
     exp_c.delete();
     job_corners.delete();
+    job_acc.delete();
     mem.clear_dut_written();
     bursts_this_job = 0;
     if (j.cfg_err() != 0) return;          // nothing is computed for a rejected configuration
@@ -58,6 +63,7 @@ class sa_scoreboard extends uvm_component;
           acc += longint'($signed(mem.read_byte(j.a_base + r * j.a_stride + i))) *
                  longint'($signed(mem.read_byte(j.b_base + i * j.b_stride + c)));
         v = sa_gemm_model::outq(acc, j.req, j.relu, j.shift, j.scale);
+        job_acc.push_back(acc);
         begin
           string cn = sa_gemm_model::corner(acc, j.req, j.relu, j.shift, j.scale);
           if (cn != "") job_corners[cn] = job_corners.exists(cn) ? job_corners[cn] + 1 : 1;
@@ -113,6 +119,7 @@ class sa_scoreboard extends uvm_component;
 
     elements_checked += job.m * job.n;
     foreach (job_corners[c]) corners[c] = (corners.exists(c) ? corners[c] : 0) + job_corners[c];
+    if (bad == 0 && cov != null) foreach (job_acc[i]) cov.element(job, job_acc[i]);
     jobs_ok++;
     `uvm_info("SB", $sformatf("%s: OK, %0d cycles, %0d bursts", tag, cycles, bursts_this_job), UVM_LOW)
   endfunction
