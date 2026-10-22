@@ -1,0 +1,69 @@
+[*] GTKWave signal list for sa_csr formal traces (cover traces and counterexamples).
+[*] Usage: gtkwave <trace.vcd> csr.gtkw     DUT signals next to their shadow (f_*) signals.
+[timestart] 0
+[size] 1400 760
+[signals_width] 220
+[sst_expanded] 1
+[sst_width] 200
+[sst_vpaned_height] 200
+@200
+-clock / reset
+@28
+sa_csr.clk
+sa_csr.rst_n
+@200
+-AXI4-Lite write
+@28
+sa_csr.s_axil_awvalid
+sa_csr.s_axil_awready
+@22
+sa_csr.s_axil_awaddr[31:0]
+@28
+sa_csr.s_axil_wvalid
+sa_csr.s_axil_wready
+@22
+sa_csr.s_axil_wdata[31:0]
+sa_csr.s_axil_wstrb[3:0]
+@28
+sa_csr.s_axil_bvalid
+sa_csr.s_axil_bready
+@22
+sa_csr.s_axil_bresp[1:0]
+sa_csr.f_exp_bresp[1:0]
+@200
+-AXI4-Lite read
+@28
+sa_csr.s_axil_arvalid
+sa_csr.s_axil_arready
+@22
+sa_csr.s_axil_araddr[31:0]
+@28
+sa_csr.s_axil_rvalid
+sa_csr.s_axil_rready
+@22
+sa_csr.s_axil_rdata[31:0]
+sa_csr.s_axil_rresp[1:0]
+@200
+-write commit (RTL vs shadow)
+@28
+sa_csr.aw_have
+sa_csr.f_aw_pend
+sa_csr.w_have
+sa_csr.f_w_pend
+sa_csr.do_write
+@22
+sa_csr.aw_addr_q[7:0]
+@200
+-interrupts and START (RTL vs shadow)
+@28
+sa_csr.evt_done
+sa_csr.evt_err
+@22
+sa_csr.f_clr[1:0]
+sa_csr.r_irq_st[31:0]
+sa_csr.f_irq_st[1:0]
+sa_csr.r_irq_en[31:0]
+@28
+sa_csr.irq
+sa_csr.start
+sa_csr.f_start

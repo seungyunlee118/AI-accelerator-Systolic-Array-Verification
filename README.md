@@ -90,4 +90,5 @@ source ~/oss-cad-suite/environment
 cd formal/csr
 sby -f sa_csr.sby          # tasks "prove" (k-induction) and "cover" (each cover reachable)
 python3 mutants.py         # put 10 bugs into a copy of the RTL; the proof must fail on each
+gtkwave sa_csr_cover/engine_0/trace4.vcd csr.gtkw 2>/dev/null   # view a trace, signals preloaded
 ```

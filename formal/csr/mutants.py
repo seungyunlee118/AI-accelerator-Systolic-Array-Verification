@@ -86,7 +86,7 @@ def run(name):
         detail = f"props:{m.group(1)}, cycle {m.group(2)} after reset:  {line}"
         trace = re.search(r"counterexample trace \[basecase\]: (\S+)", log)
         if trace:
-            detail += f"\n{'':22}trace: {d.relative_to(HERE)}/{trace.group(1)}"
+            detail += f"\n{'':22}view:  gtkwave {d.relative_to(HERE)}/{trace.group(1)} csr.gtkw 2>/dev/null"
     return name, expect, status, detail, what
 
 
