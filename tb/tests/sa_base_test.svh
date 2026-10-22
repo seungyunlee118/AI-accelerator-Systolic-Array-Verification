@@ -36,6 +36,45 @@ class sa_base_test extends uvm_test;
   virtual task body();
   endtask
 
+  // ------------------------------------------------------------ helpers for derived tests
+  // Raw AXI4-Lite accesses (any address, any strobes), returning the bus response.
+  task raw_write(bit [31:0] addr, bit [31:0] data, bit [3:0] strb, output bit [1:0] resp);
+    axil_single_seq s = axil_single_seq::type_id::create("s");
+    s.kind = AXIL_WRITE;  s.addr = addr;  s.data = data;  s.strb = strb;
+    s.start(env.axil.sqr);
+    resp = s.resp;
+  endtask
+
+  task raw_read(bit [31:0] addr, output bit [31:0] data, output bit [1:0] resp);
+    axil_single_seq s = axil_single_seq::type_id::create("s");
+    s.kind = AXIL_READ;  s.addr = addr;
+    s.start(env.axil.sqr);
+    data = s.data;
+    resp = s.resp;
+  endtask
+
+  // Bits of a register that software can write (its RW fields).
+  function bit [31:0] rw_mask(uvm_reg rg);
+    uvm_reg_field f[$];
+    rg.get_fields(f);
+    rw_mask = '0;
+    foreach (f[i])
+      if (f[i].get_access() == "RW")
+        rw_mask |= 32'(((64'd1 << f[i].get_n_bits()) - 1) << f[i].get_lsb_pos());
+  endfunction
+
+  // Read every register through the bus and compare with the RAL mirror.
+  task check_all_mirrors();
+    uvm_reg      regs[$];
+    uvm_status_e st;
+    env.regmodel.get_registers(regs);
+    foreach (regs[i]) regs[i].mirror(st, UVM_CHECK);
+  endtask
+
+  function void expect_resp(string what, bit [1:0] got, bit [1:0] exp);
+    if (got !== exp) `uvm_error("RESP", $sformatf("%s: response %0d, expected %0d", what, got, exp))
+  endfunction
+
   virtual function void report_phase(uvm_phase phase);
     uvm_report_server svr = uvm_report_server::get_server();
     int errs = svr.get_severity_count(UVM_ERROR) + svr.get_severity_count(UVM_FATAL);

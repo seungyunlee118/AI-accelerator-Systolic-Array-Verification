@@ -1,6 +1,6 @@
 // Block-level testbench top for the CSR block (sa_csr) alone.
-// The core-side inputs (busy, error code, events, cycle count) are tied off for now; tests that
-// need them (IRQ tests) will drive them later.
+// The core-side inputs (busy, error code, events, cycle count) come from csr_core_if, which
+// tests drive in place of the controller.
 module tb_top_csr;
   import uvm_pkg::*;
   `include "uvm_macros.svh"
@@ -15,10 +15,14 @@ module tb_top_csr;
     #47 rst_n = 1'b1;
   end
 
-  axil_if axil (.clk(clk), .rst_n(rst_n));
+  axil_if     axil (.clk(clk), .rst_n(rst_n));
+  csr_core_if core (.clk(clk), .rst_n(rst_n));   // stands in for the controller
 
-  // core-side outputs of the CSR block (unused by CSR-only tests)
-  logic        start, irq, req_en, relu_en;
+  // For csr_irq_test: raise an event in exactly the cycle an IRQ_STATUS write takes effect.
+  wire race_hit = dut.do_write && (dut.aw_addr_q == 8'h0C);
+
+  // core-side outputs of the CSR block that only the full chip uses
+  logic        req_en, relu_en;
   logic [6:0]  dim_m, dim_n, dim_k;
   logic [31:0] a_base, b_base, c_base;
   logic [15:0] a_stride, b_stride, c_stride, scale;
@@ -44,12 +48,12 @@ module tb_top_csr;
     .s_axil_rresp   (axil.rresp),
     .s_axil_rvalid  (axil.rvalid),
     .s_axil_rready  (axil.rready),
-    .start          (start),
-    .busy           (1'b0),
-    .err_code       (4'd0),
-    .evt_done       (1'b0),
-    .evt_err        (1'b0),
-    .cycles         (32'd0),
+    .start          (core.start),
+    .busy           (core.busy),
+    .err_code       (core.err_code),
+    .evt_done       (core.evt_done | (core.race_done & race_hit)),
+    .evt_err        (core.evt_err  | (core.race_err  & race_hit)),
+    .cycles         (core.cycles),
     .dim_m          (dim_m),
     .dim_n          (dim_n),
     .dim_k          (dim_k),
@@ -63,11 +67,12 @@ module tb_top_csr;
     .relu_en        (relu_en),
     .shift          (shift),
     .scale          (scale),
-    .irq            (irq)
+    .irq            (core.irq)
   );
 
   initial begin
     uvm_config_db#(virtual axil_if)::set(null, "uvm_test_top*", "vif", axil);
+    uvm_config_db#(virtual csr_core_if)::set(null, "uvm_test_top*", "core_vif", core);
     run_test();
   end
 endmodule

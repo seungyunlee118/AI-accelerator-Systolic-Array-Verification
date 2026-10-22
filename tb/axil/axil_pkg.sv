@@ -8,4 +8,5 @@ package axil_pkg;
   `include "axil_monitor.svh"
   `include "axil_agent.svh"
   `include "axil_reg_adapter.svh"
+  `include "axil_single_seq.svh"
 endpackage

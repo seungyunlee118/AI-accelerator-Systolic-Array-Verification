@@ -42,7 +42,8 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] DMA read engine (4 outstanding, out-of-order/interleaved), DMA write engine, controller, top;
       full-DUT smoke test passes 45 jobs (incl. 6 error jobs); 7 injected RTL bugs all caught
 - [x] RAL model generated from SystemRDL (PeakRDL); AXI4-Lite agent; CSR block-level UVM env;
-      `csr_reset_test` passes on Xcelium (reset-value mutants caught)
+      4 CSR tests pass on Xcelium (reset, bit-bash + random strobes/timing, SLVERR/aliasing,
+      IRQ/W1C/START incl. the set-vs-clear race); 5 injected CSR bugs each caught by its test
 - [ ] UVM environment for the full DUT (AXI memory responder, golden model, scoreboard, coverage)
 - [ ] Regression, coverage closure, mutation campaign
 

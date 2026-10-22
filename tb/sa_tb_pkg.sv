@@ -8,4 +8,7 @@ package sa_tb_pkg;
   `include "sa_csr_env.svh"
   `include "sa_base_test.svh"
   `include "csr_reset_test.svh"
+  `include "csr_rw_test.svh"
+  `include "csr_access_test.svh"
+  `include "csr_irq_test.svh"
 endpackage

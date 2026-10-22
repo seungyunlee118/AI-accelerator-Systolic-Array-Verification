@@ -17,6 +17,9 @@ class axil_reg_adapter extends uvm_reg_adapter;
     t.addr = rw.addr;
     t.data = rw.data;
     t.strb = rw.byte_en[3:0];
+    // Random channel timing for every RAL access: AW before/after/with W, B/R back-pressure.
+    if (!t.randomize(aw_delay, w_delay, b_delay, r_delay))
+      `uvm_error("AXIL_ADAPTER", "timing randomize failed")
     return t;
   endfunction
 

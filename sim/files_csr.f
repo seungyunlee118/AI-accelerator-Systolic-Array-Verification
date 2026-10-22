@@ -7,6 +7,7 @@
 
 ../tb/ral/sa_gemm_csr_ral_pkg.sv
 ../tb/axil/axil_if.sv
+../tb/env/csr_core_if.sv
 ../tb/axil/axil_pkg.sv
 ../tb/sa_tb_pkg.sv
 ../tb/tb_top_csr.sv
