@@ -224,4 +224,9 @@ module sa_dma_rd #(
   assign buf_row  = tab_row[r_id];
   assign buf_beat = tab_beat[r_id];
   assign buf_data = m_axi_rdata;
+
+  // Formal properties (formal/dma_rd), included only when FORMAL is defined.
+`ifdef FORMAL
+  `include "sa_dma_rd_props.svh"
+`endif
 endmodule

@@ -32,3 +32,6 @@ formal/**/status.sqlite
 # regression and mutation runs (sim/regress.py, sim/mutate.py)
 sim/regress/
 sim/mutants/
+formal/*/*_bmc/
+formal/*/*_bmc_spec/
+formal/__pycache__/

@@ -270,7 +270,16 @@ seed: 매일 돌리는 regression에서는 테스트마다 seed 4개 이상, sig
 | 증명 | 블록 | 모든 입력 순서에 대해 증명하는 것 | 기능 | 상태 |
 |---|---|---|---|---|
 | `csr` | `sa_csr` | AXI4-Lite slave 프로토콜 (B/R은 받아갈 때까지 유지, 요청 뒤에만 응답, AW/W 순서 무관); offset별 OKAY/SLVERR; 모든 레지스터 읽기 값; byte lane별로 쓰기 가능한 비트만 쓰기; 같은 cycle의 clear보다 이벤트가 이기는 W1C; `irq`; START 펄스는 lane 0 필요 | F-CSR-02..05, F-CSR-06 (START 부분), F-CSR-08 | k-induction 통과; 버그 mutant 10/10 잡음, 안전한 변경 1개 증명 |
-| `dma_ids` | `sa_dma_rd` ID 관리 | outstanding 읽기 ≤ 4, RLAST 전에 ARID 재사용 없음 | F-DMA-04 | 예정 |
+| `dma_rd` | `sa_dma_rd` (읽기 엔진) | 어떤 AXI4 메모리에 대해서도(ARREADY 타이밍, 응답 순서와 섞임, RRESP 모두 자유): AR 프로토콜과 버스트 모양(4 KB 포함); RLAST 전에 ARID 재사용 없음(outstanding ≤ 4); 모든 beat가 버스 주소 = 스펙 주소인 버퍼 칸에 기록됨; 에러 후 새 버스트 없음, 다 받은 뒤에만 done, err 보고; 모든 행의 모든 칸이 채워짐(64 x 64까지 모든 크기) | F-DMA-02..05, F-ERR-03 (읽기 쪽) | k-induction 통과 (~12초); 버그 mutant 9/9를 스펙 속성만으로 잡음 (helper 끔), 안전한 변경 2개 증명 |
+
+DMA 증명을 풀 수 있게 만든 방법 (`formal/dma_rd/sa_dma_rd_props.svh`):
+- 두 인자가 모두 자유로운 스펙 주소 `base + row * stride` 때문에 모든 솔버(yices, bitwuzla, boolector,
+  abc pdr)가 10분 넘게 결과를 못 냈어요. 섀도 모델이 행이 한 칸 넘어갈 때마다 stride를 더해서 행 주소를 만들고,
+  속성 P0이 행 카운터가 항상 1씩만 증가하는지 확인해요. 그러면 공식은 구성상 참이고, 솔버는 덧셈만 봐요.
+- 완전성은 처음에 bounded 체크(3행, 40사이클)였는데 너무 느렸어요. 지금은 귀납 보조정리로 모든 크기에서 증명해요:
+  어떤 칸의 버스트가 발행되면, 그 칸은 이미 쓰였거나 진행 중인 버스트가 아직 그 칸을 덮고 있어요.
+- 안전한 mutant `safe_no_r_err_guard`는 1주차 질문(스모크 테스트로 못 잡은 RTL mutant, 손으로 동등하다고 주장했던 것)을
+  해결해요: 증명이 실제로 동등함을 보여줘요.
 
 ## 8. Sign-off 기준 (검증 완료 조건)
 - **Functional coverage:** P0 커버그룹은 모두 100%. P1은 100%이거나, 리뷰를 거친 waiver(예외 처리)가 있어야 함.

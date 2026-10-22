@@ -293,7 +293,19 @@ Formal is used on control blocks with a small state space and many corner cases.
 | Proof | Block | What is proven for every input sequence | Features | Status |
 |---|---|---|---|---|
 | `csr` | `sa_csr` | AXI4-Lite slave protocol (B/R held until taken, a response only after its request, AW/W in any order); OKAY/SLVERR per offset; every read value; byte-lane writes of writable bits only; W1C with an event winning over a same-cycle clear; `irq`; START pulse needs lane 0 | F-CSR-02..05, F-CSR-06 (START part), F-CSR-08 | k-induction pass; 10/10 bug mutants killed, 1 safe change proven |
-| `dma_ids` | `sa_dma_rd` ID manager | ≤ 4 reads outstanding, no ARID reused before its RLAST | F-DMA-04 | planned |
+| `dma_rd` | `sa_dma_rd` (read engine) | Against any AXI4 memory (any ARREADY timing, any order and interleaving of returns, any RRESP): AR protocol and burst shape incl. 4 KB; no ARID reused before its RLAST (≤ 4 outstanding); every beat written to the buffer slot whose spec address is its bus address; no new burst after an error, done only when drained, err reported; every slot of every row written (all sizes up to 64 x 64) | F-DMA-02..05, F-ERR-03 (read side) | k-induction pass in ~12 s; 9/9 bug mutants killed by spec properties alone (helpers off), 2 safe changes proven |
+
+How the DMA proof was made tractable (`formal/dma_rd/sa_dma_rd_props.svh`):
+- The spec address `base + row * stride` with both factors free made every solver (yices,
+  bitwuzla, boolector, abc pdr) run for 10+ minutes without a result. The shadow model builds
+  the row address by adding the stride once per row step instead, and a property (P0) checks
+  that the row counter only ever steps by one, so the formula holds by construction and the
+  solver sees only additions.
+- Completeness was first a bounded check (3 rows, 40 cycles) that was too slow; it is now proven
+  for every size by an inductive lemma: once a slot's burst is issued, either the slot has been
+  written or a burst in flight still covers it.
+- The safe mutant `safe_no_r_err_guard` settles a question from week 1 (an RTL mutant that the
+  smoke test could not kill, argued by hand to be equivalent): the proof shows it is.
 
 ## 8. Sign-off criteria
 - **Functional coverage:** every P0 covergroup at 100%; P1 at 100% or with a reviewed waiver.

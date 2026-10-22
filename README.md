@@ -60,7 +60,10 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] Spec v0.4: minimum reset pulse (found by the mid-job reset test, vplan Q6)
 - [x] Functional coverage model CG-01..09 (covergroups + bin counts merged by `sim/covmerge.py`,
       since the server has no IMC); closure from 98.0% to 100% (3 bins waived until ARRAY_N = 8)
-- [ ] DMA ID formal proof, ARRAY_N = 8; code coverage report (needs IMC)
+- [x] Formal (SymbiYosys): DMA read engine proven by k-induction against any AXI4 memory (ID
+      reuse, out-of-order/interleaved data placement, 4 KB, errors, completeness for all sizes);
+      9/9 injected bugs killed by spec properties alone, 2 safe changes proven
+- [ ] ARRAY_N = 8; code coverage report (needs IMC)
 
 ## Workflow
 Code is edited on a laptop and simulated on a Linux server with Xcelium.
@@ -106,4 +109,7 @@ cd formal/csr
 sby -f sa_csr.sby          # tasks "prove" (k-induction) and "cover" (each cover reachable)
 python3 mutants.py         # put 10 bugs into a copy of the RTL; the proof must fail on each
 gtkwave sa_csr_cover/engine_0/trace4.vcd csr.gtkw 2>/dev/null   # view a trace, signals preloaded
+cd ../dma_rd
+sby -f sa_dma_rd.sby prove cover   # DMA read engine: k-induction (~12 s) and covers
+python3 mutants.py                 # 9 bugs must fail (spec properties only), 2 safe changes must pass
 ```

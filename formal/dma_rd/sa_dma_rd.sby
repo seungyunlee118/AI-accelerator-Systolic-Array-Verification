@@ -1,0 +1,34 @@
+[tasks]
+prove
+cover
+# mutation check only: real counterexamples from reset (finding a bug is fast; proving absence is the prove task)
+bmc
+# the same with the helper invariants left out: only spec properties (P0-P5) can kill a bug
+bmc_spec
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 40
+bmc: mode bmc
+bmc: depth 25
+bmc_spec: mode bmc
+bmc_spec: depth 25
+
+[engines]
+smtbmc yices
+
+[script]
+prove: read -formal sa_dma_rd.sv
+cover: read -formal -DSMALL sa_dma_rd.sv
+bmc: read -formal -DSMALL sa_dma_rd.sv
+bmc_spec: read -formal -DSMALL -DNO_HELPERS sa_dma_rd.sv
+hierarchy -top sa_dma_rd
+# keep constant case tables as logic (see formal/csr/sa_csr.sby)
+proc -norom
+prep -top sa_dma_rd
+
+[files]
+../../rtl/sa_dma_rd.sv
+sa_dma_rd_props.svh

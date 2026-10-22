@@ -3,23 +3,20 @@
 
 Each mutant is one small, realistic bug put into a copy of rtl/sa_csr.sv. The proof must FAIL on
 every bug mutant (the bug is "killed", with a counterexample trace) and must still PASS on the
-"safe" mutants, which change the RTL without breaking the spec.
+"safe" mutants, which change the RTL without breaking the spec. The runner is ../mutlib.py.
 
   source ~/oss-cad-suite/environment
   python3 mutants.py              # all mutants
   python3 mutants.py w1c_clear_wins irq_no_enable
 """
-import pathlib
-import re
-import shutil
-import subprocess
 import sys
 
-HERE = pathlib.Path(__file__).resolve().parent
-RTL = HERE / "../../rtl/sa_csr.sv"
-PROPS = HERE / "sa_csr_props.svh"
-SBY = HERE / "sa_csr.sby"
-WORK = HERE / "mutants_work"
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
+import mutlib  # noqa: E402
+
+HERE = mutlib.block_dir(__file__)
+BLOCK = {"dir": HERE, "rtl": (HERE / "../../rtl/sa_csr.sv").resolve(), "props": HERE / "sa_csr_props.svh",
+         "sby": HERE / "sa_csr.sby", "gtkw": "csr.gtkw", "task": "prove"}
 
 # name: (original text, mutated text, expected proof result, what the bug is)
 MUTANTS = {
@@ -62,48 +59,6 @@ MUTANTS = {
 }
 
 
-def run(name):
-    orig, new, expect, what = MUTANTS[name]
-    src = RTL.read_text()
-    if src.count(orig) != 1:
-        return name, expect, "NO-MATCH", f"original text found {src.count(orig)} times", what
-
-    d = WORK / name
-    shutil.rmtree(d, ignore_errors=True)
-    d.mkdir(parents=True)
-    (d / "sa_csr.sv").write_text(src.replace(orig, new))
-    shutil.copy(PROPS, d / "sa_csr_props.svh")
-    (d / "m.sby").write_text(SBY.read_text().replace("../../rtl/sa_csr.sv", "sa_csr.sv"))
-
-    subprocess.run(["sby", "-f", "m.sby", "prove"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    log = (d / "m_prove" / "logfile.txt").read_text()
-    status = re.search(r"DONE \((\w+)", log).group(1)
-
-    detail = ""
-    m = re.search(r"failed assertion \S+ at sa_csr_props\.svh:(\d+)\S* step (\d+)", log)
-    if m:
-        line = PROPS.read_text().splitlines()[int(m.group(1)) - 1].strip()
-        detail = f"props:{m.group(1)}, cycle {m.group(2)} after reset:  {line}"
-        trace = re.search(r"counterexample trace \[basecase\]: (\S+)", log)
-        if trace:
-            detail += f"\n{'':22}view:  gtkwave {d.relative_to(HERE)}/{trace.group(1)} csr.gtkw 2>/dev/null"
-    return name, expect, status, detail, what
-
-
-def main():
-    names = sys.argv[1:] or list(MUTANTS)
-    bad = 0
-    for n in names:
-        name, expect, status, detail, what = run(n)
-        ok = status == expect
-        bad += not ok
-        verdict = ("killed" if status == "FAIL" else "proved") if ok else f"UNEXPECTED (wanted {expect})"
-        print(f"{name:20}  {status:7}  {verdict:8}  {what}")
-        if detail:
-            print(f"{'':22}{detail}")
-    print(f"\n{len(names) - bad}/{len(names)} mutants behaved as expected")
-    sys.exit(1 if bad else 0)
-
 
 if __name__ == "__main__":
-    main()
+    mutlib.main(BLOCK, MUTANTS)
