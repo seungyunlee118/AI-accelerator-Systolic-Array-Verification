@@ -51,8 +51,8 @@ class sa_csr_env extends uvm_env;
   virtual function void report_phase(uvm_phase phase);
     string path;
     super.report_phase(phase);
-    csr_cov.check();
-    race_cov.check();
+    csr_cov.check_coverage();
+    race_cov.check_coverage();
     if ($value$plusargs("COV_DUMP=%s", path)) cov_db.dump(path);
   endfunction
 endclass

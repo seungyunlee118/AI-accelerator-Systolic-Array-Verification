@@ -463,7 +463,8 @@ class sa_top_cov extends uvm_component;
     join
   endtask
 
-  function void check();
+  // (not named check(): uvm_component::check() is a deprecated hook that UVM calls by itself)
+  function void check_coverage();
     db.check("CG-02", cg_job.get_inst_coverage());
     db.check("CG-03", cg_out.get_inst_coverage());
     db.check("CG-04", cg_rd.get_inst_coverage());

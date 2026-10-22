@@ -69,7 +69,8 @@ class sa_csr_cov extends uvm_subscriber #(axil_item);
     db.hit("CG-01", "cp_alias", c_alias.name());
   endfunction
 
-  function void check();
+  // (not named check(): uvm_component::check() is a deprecated hook that UVM calls by itself)
+  function void check_coverage();
     db.check("CG-01", cg_access.get_inst_coverage());
   endfunction
 endclass

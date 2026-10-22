@@ -48,7 +48,8 @@ class sa_csr_race_cov extends uvm_component;
     end
   endtask
 
-  function void check();
+  // (not named check(): uvm_component::check() is a deprecated hook that UVM calls by itself)
+  function void check_coverage();
     db.check("CG-01r", cg_race.get_inst_coverage());
   endfunction
 endclass
