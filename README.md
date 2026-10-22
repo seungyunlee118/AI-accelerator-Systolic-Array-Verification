@@ -39,7 +39,9 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] CSR (AXI4-Lite) RTL, smoke test passing (AW/W ordering, strobes, W1C set-vs-clear race)
 - [x] Output stage (ReLU + requantization) RTL, smoke test passing (21,851 checks)
 - [ ] DMA (AXI4 master), controller, top
-- [ ] UVM environment (RAL, AXI memory responder, DPI-C golden model, coverage)
+- [x] RAL model generated from SystemRDL (PeakRDL); AXI4-Lite agent; CSR block-level UVM env;
+      `csr_reset_test` passes on Xcelium (reset-value mutants caught)
+- [ ] UVM environment for the full DUT (AXI memory responder, golden model, scoreboard, coverage)
 - [ ] Regression, coverage closure, mutation campaign
 
 ## Workflow
@@ -49,6 +51,13 @@ Code is edited on a laptop and simulated on a Linux server with Xcelium.
 ./sync.sh                                   # laptop -> server (ssh alias "msd10")
 ssh msd10                                   # or use the server's own terminal
 cd ~/AI-accelerator-Systolic-Array-Verification/sim
+```
+
+UVM tests (run inside `sim/`):
+```bash
+make                          # csr_reset_test, seed 1
+make TEST=csr_reset_test SEED=7 VERB=UVM_HIGH
+make GUI=1                    # open the run in SimVision
 ```
 
 Smoke tests (run inside `sim/`):

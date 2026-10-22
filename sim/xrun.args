@@ -1,0 +1,15 @@
+// Build and run options shared by every UVM run (read with -f by the Makefile).
+
+// The lab server has no 32-bit libz, so 64-bit mode is required (*F,RNCNL otherwise).
+-64bit
+// Xcelium's bundled UVM 1.2.
+-uvm
+-uvmhome CDNS-1.2
+// SystemVerilog, and a default time unit for files without `timescale.
+-sv
+-timescale 1ns/1ps
+// Read access to signals, for waveforms and debug.
+-access +r
+-nocopyright
+// Known harmless on this server: DPI export stub cannot link without glibc-devel.
+-nowarn DPIEXP

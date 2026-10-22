@@ -19,3 +19,6 @@ cov_work/
 
 # PeakRDL HTML register docs (regenerate with ral/gen.sh)
 docs/regs/
+
+# simulation logs
+sim/logs/
