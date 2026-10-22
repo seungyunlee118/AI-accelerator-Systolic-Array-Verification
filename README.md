@@ -30,6 +30,7 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 | `docs/ko/`      | Korean translations of the spec and the verification plan (the English files are authoritative) |
 | `rtl/`          | DUT RTL |
 | `tb/smoke/`     | Designer smoke tests |
+| `docs/bug_log.md` | RTL bugs found by verification |
 | `sim/`          | Simulation run directory (outputs are git-ignored) |
 | `sync.sh`       | Copies the repo to the Xcelium server |
 
@@ -38,7 +39,8 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] PE + systolic array RTL, smoke test passing (80 cases, Xcelium 24.09)
 - [x] CSR (AXI4-Lite) RTL, smoke test passing (AW/W ordering, strobes, W1C set-vs-clear race)
 - [x] Output stage (ReLU + requantization) RTL, smoke test passing (21,851 checks)
-- [ ] DMA (AXI4 master), controller, top
+- [x] DMA read engine (4 outstanding, out-of-order/interleaved), DMA write engine, controller, top;
+      full-DUT smoke test passes 45 jobs (incl. 6 error jobs); 7 injected RTL bugs all caught
 - [x] RAL model generated from SystemRDL (PeakRDL); AXI4-Lite agent; CSR block-level UVM env;
       `csr_reset_test` passes on Xcelium (reset-value mutants caught)
 - [ ] UVM environment for the full DUT (AXI memory responder, golden model, scoreboard, coverage)
@@ -65,5 +67,9 @@ Smoke tests (run inside `sim/`):
 xrun -sv ../rtl/sa_pe.sv ../rtl/sa_array.sv ../tb/smoke/tb_sa_array.sv
 xrun -sv ../rtl/sa_csr.sv  ../tb/smoke/tb_sa_csr.sv
 xrun -sv ../rtl/sa_outq.sv ../tb/smoke/tb_sa_outq.sv
+xrun -sv ../rtl/sa_dma_rd.sv ../tb/smoke/tb_sa_dma_rd.sv
+xrun -sv ../rtl/sa_pe.sv ../rtl/sa_array.sv ../rtl/sa_outq.sv ../rtl/sa_csr.sv \
+         ../rtl/sa_dma_rd.sv ../rtl/sa_dma_wr.sv ../rtl/sa_ctrl.sv ../rtl/sa_top.sv \
+         ../tb/smoke/tb_sa_top.sv
 ```
 On this server Cadence tools need 64-bit mode: `export CDS_AUTO_64BIT=ALL` (or pass `-64bit`).
