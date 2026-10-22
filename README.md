@@ -44,7 +44,11 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 - [x] RAL model generated from SystemRDL (PeakRDL); AXI4-Lite agent; CSR block-level UVM env;
       4 CSR tests pass on Xcelium (reset, bit-bash + random strobes/timing, SLVERR/aliasing,
       IRQ/W1C/START incl. the set-vs-clear race); 5 injected CSR bugs each caught by its test
-- [ ] UVM environment for the full DUT (AXI memory responder, golden model, scoreboard, coverage)
+- [x] Full-chip UVM environment: AXI4 memory agent (in-order / out-of-order / interleaved reads,
+      latency, back-pressure, error injection), AXI4 + DMA-rule SVA, SV golden model, job scoreboard
+      (C bytes, write containment, sentinel, status/irq/CYCLES); `gemm_smoke_test` and
+      `gemm_rand_test` pass (3 seeds, ~66k elements); 6 injected RTL bugs all caught
+- [ ] Error/reset/back-to-back tests, coverage model, regression script, formal
 - [ ] Regression, coverage closure, mutation campaign
 
 ## Workflow
@@ -58,7 +62,8 @@ cd ~/AI-accelerator-Systolic-Array-Verification/sim
 
 UVM tests (run inside `sim/`):
 ```bash
-make                          # csr_reset_test, seed 1
+make                          # csr_reset_test, seed 1 (CSR block-level testbench)
+make TB=top TEST=gemm_rand_test SEED=3 PLUSARGS=+JOBS=40   # full-chip testbench
 make TEST=csr_reset_test SEED=7 VERB=UVM_HIGH
 make GUI=1                    # open the run in SimVision
 ```

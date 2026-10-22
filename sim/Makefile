@@ -1,11 +1,13 @@
 # SA-GEMM UVM runs on Cadence Xcelium. Run from sim/.
 #
-#   make                                 # csr_reset_test, seed 1
+#   make                                 # csr_reset_test, seed 1 (CSR testbench)
+#   make TB=top TEST=gemm_rand_test      # full-chip testbench (files_top.f)
 #   make TEST=csr_reset_test SEED=7
 #   make VERB=UVM_HIGH                   # more log detail
 #   make GUI=1                           # open the run in SimVision (remote desktop only)
 #   make WAVE=1                          # batch run that records waves.shm (works over ssh)
 #   make view                            # open waves.shm in SimVision (remote desktop only)
+#   make TB=top TEST=gemm_rand_test PLUSARGS=+JOBS=40
 #   make clean
 
 SHELL := /bin/bash
@@ -16,10 +18,11 @@ SEED  ?= 1
 VERB  ?= UVM_MEDIUM
 GUI   ?= 0
 WAVE  ?= 0
+PLUSARGS ?=
 
 LOG   := logs/$(TEST)_$(SEED).log
 OPTS  := -f xrun.args -f files_$(strip $(TB)).f -svseed $(SEED) \
-         +UVM_TESTNAME=$(TEST) +UVM_VERBOSITY=$(VERB) -l $(LOG)
+         +UVM_TESTNAME=$(TEST) +UVM_VERBOSITY=$(VERB) $(PLUSARGS) -l $(LOG)
 ifeq ($(GUI),1)
 OPTS  += -access +rwc -gui
 endif
