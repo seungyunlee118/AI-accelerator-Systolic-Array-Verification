@@ -27,6 +27,7 @@ Full details are in [`docs/spec.md`](docs/spec.md).
 |-----------------|----------|
 | `docs/spec.md`  | Design specification (DUT contract) |
 | `docs/vplan.md` | Verification plan |
+| `docs/ko/`      | Korean translations of the spec and the verification plan (the English files are authoritative) |
 | `rtl/`          | DUT RTL |
 | `tb/smoke/`     | Designer smoke tests |
 | `sim/`          | Simulation run directory (outputs are git-ignored) |

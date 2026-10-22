@@ -80,6 +80,21 @@ module tb_sa_dma_rd;
 
   int errors = 0;
 
+  // Fail fast: the first few errors say everything; thousands more only slow the run down.
+  localparam int MAX_ERRORS = 10;
+  always @(errors)
+    if (errors >= MAX_ERRORS) begin
+      $display("*** DMA_RD SMOKE FAILED: stopped after %0d errors ***", errors);
+      $finish;
+    end
+
+  // Global watchdog: a clean run takes about 0.4 ms of simulated time.
+  initial begin
+    #50_000_000;
+    $display("*** DMA_RD SMOKE FAILED: global timeout (simulation hung) ***");
+    $finish;
+  end
+
   // buffer capture
   logic [63:0] shadow [2][64][8];
   bit          wrote  [2][64][8];
