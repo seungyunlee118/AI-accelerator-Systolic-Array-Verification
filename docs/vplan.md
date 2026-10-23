@@ -228,7 +228,7 @@ project, where `$error` assertions failed silently).
 | Covergroup | Sampled | Coverpoints / bins | Crosses | Goal |
 |---|---|---|---|---|
 | CG-01 csr | each AXI4-Lite access | register × access (read, write); AW/W order {AW first, W first, same cycle}; WSTRB {full, partial}; unmapped; RO write; W1C clear with event in the same cycle | register × access | 100% |
-| CG-02 job_cfg | each START | M, N, K bins {1, 2–3, 4, 5–7, 8, 9–63, 64}; M mod 4, N mod 4; C gap {none, gap}; A/B stride {gap, exact, overlap} | m_mod4 × n_mod4 × req_en | 100% |
+| CG-02 job_cfg | each START | M, N, K bins {1, 2–3, 4, 5–7, 8, 9–63, 64}; M mod T, N mod T (T = ARRAY_N, the tile size: edge tiles); C gap {none, gap}; A/B stride {gap, exact, overlap, zero} | m_mod_T × n_mod_T × req_en | 100% |
 | CG-03 output | each C element | result class {in range, clamp high, clamp low, ReLU zero}; tie {positive, negative}; SCALE {0, 1, mid, 65535}; SHIFT {0, 1, mid, 31}; REQ_EN, RELU_EN | class × relu_en; tie × req_en | 100% |
 | CG-04 dma_read | each AR / burst end | outstanding at AR {1,2,3,4}; ARID {0..3}; ARLEN {0, 1–6, 7}; 4 KB split; out-of-order seen; interleave seen; RRESP error | outstanding=4 × out-of-order | 100% |
 | CG-05 dma_write | each W beat / B | AWLEN; WSTRB shape {full, low half, high half, single byte, other}; BRESP error; 4 KB split | wstrb shape × req_en | 100% |
@@ -260,6 +260,10 @@ First merged run (17 tests x 4 seeds): 98.0%, 7 holes.
 | CG-08 `x_phase_inflight` B load x 2 in flight | Resets were aimed at a phase only | `reset_midjob_test` waits for 0..4 reads in flight |
 
 Result: 100% (3 waived bins, all ARRAY_N = 8), at 4 and at 20 seeds.
+
+Week 6: the ARRAY_N = 8 build hits all three (4-beat writes, full-beat INT8 rows, ARRAY_8), so the
+waivers were removed. CG-02 now bins M and N modulo the tile size of the build (0..7 for 8x8),
+and `gemm_edge_test` covers every residue pair: 386 bins, 100%, no waivers.
 On the way, the self-check found that Xcelium does not sample covergroups at all without
 `-cov_cgsample` (or `-coverage U`): every covergroup reported 0% while the bin counts did not.
 
@@ -319,6 +323,18 @@ How the DMA proof was made tractable (`formal/dma_rd/sa_dma_rd_props.svh`):
 - **Testbench quality:** mutation campaign kills ≥ 95% of non-equivalent mutants.
 - **Formal:** every proof ends in PASS (not UNKNOWN), every cover is reached (no vacuous
   proof), and its mutant script kills every bug mutant.
+
+### 8.1 Sign-off review (2026-10-23)
+| Criterion | Status | Evidence |
+|---|---|---|
+| Functional coverage | **met** | 100% of 386 bins over CG-01..09, both array sizes, no waivers (`sim/regress.py` coverage.txt) |
+| Code coverage | **open (tool)** | database collected (`make CODECOV=1`); no IMC on the lab server to read it |
+| Regression | **met** | 17 tests x 20 seeds, full-chip tests on ARRAY_N 4 and 8: 600/600 pass |
+| Bugs | **met** | no RTL bug found (`docs/bug_log.md`); 6 spec questions closed (§9) |
+| Testbench quality | **met** | 16/16 simulation mutants killed at ARRAY_N 4 and at 8 (100% ≥ 95%) |
+| Formal | **met** | `csr` and `dma_rd`: k-induction PASS, all covers reached, 19/19 bug mutants killed, 3 safe changes proven |
+
+Verdict: signed off for ARRAY_N 4 and 8, with code coverage as the one open item (tool access).
 
 ## 9. Open questions (to the designer)
 | # | Spec § | Question | Answer (designer) | Status |

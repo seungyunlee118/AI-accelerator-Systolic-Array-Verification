@@ -208,7 +208,7 @@
 | 커버그룹 | 샘플링 시점 | 커버포인트 / bin | 교차(cross) | 목표 |
 |---|---|---|---|---|
 | CG-01 csr | AXI4-Lite 접근마다 | 레지스터 × 접근(읽기, 쓰기), AW/W 순서 {AW 먼저, W 먼저, 동시}, WSTRB {전체, 부분}, 없는 주소, RO 쓰기, 이벤트와 같은 클럭의 W1C 클리어 | 레지스터 × 접근 | 100% |
-| CG-02 job_cfg | START마다 | M, N, K 구간 {1, 2–3, 4, 5–7, 8, 9–63, 64}, M mod 4, N mod 4, C 빈 공간 {없음, 있음}, A/B stride {빈 공간, 딱 맞음, 겹침} | m_mod4 × n_mod4 × req_en | 100% |
+| CG-02 job_cfg | START마다 | M, N, K 구간 {1, 2–3, 4, 5–7, 8, 9–63, 64}, M mod T, N mod T (T = ARRAY_N, 타일 크기: 가장자리 타일), C 빈 공간 {없음, 있음}, A/B stride {빈 공간, 딱 맞음, 겹침, 0} | m_mod_T × n_mod_T × req_en | 100% |
 | CG-03 output | C 원소마다 | 결과 종류 {범위 안, 위로 잘림, 아래로 잘림, ReLU 0}, 동률 {양수, 음수}, SCALE {0, 1, 중간, 65535}, SHIFT {0, 1, 중간, 31}, REQ_EN, RELU_EN | 결과 종류 × relu_en, 동률 × req_en | 100% |
 | CG-04 dma_read | AR마다 / 버스트 끝마다 | AR 때 outstanding {1,2,3,4}, ARID {0..3}, ARLEN {0, 1–6, 7}, 4KB 분할, 순서 바뀜 발생, 섞임 발생, RRESP 에러 | outstanding=4 × 순서 바뀜 | 100% |
 | CG-05 dma_write | W beat마다 / B마다 | AWLEN, WSTRB 모양 {전체, 아래 절반, 위 절반, 1바이트, 기타}, BRESP 에러, 4KB 분할 | WSTRB 모양 × req_en | 100% |
@@ -237,6 +237,10 @@
 | CG-08 `x_phase_inflight` B 로드 x 진행 중 2개 | 리셋을 단계만 겨냥했음 | `reset_midjob_test`가 진행 중 읽기 0..4개를 기다림 |
 
 결과: 100% (waiver 3개, 모두 ARRAY_N = 8), seed 4개와 20개 모두.
+
+6주차: ARRAY_N = 8 빌드가 세 개 모두 hit(4비트 쓰기, INT8 full beat 행, ARRAY_8)해서 waiver를 없앴어요.
+CG-02는 이제 M, N을 빌드의 타일 크기로 나눈 나머지(8x8이면 0..7)로 나누고, `gemm_edge_test`가 모든 나머지 쌍을
+다뤄요: 386 bin, 100%, waiver 없음.
 도중에 self-check가 Xcelium은 `-cov_cgsample` (또는 `-coverage U`) 없이는 covergroup을 전혀 샘플링하지 않는다는 걸
 찾았어요: 모든 covergroup이 0%를 보고했는데 bin 수는 그렇지 않았음.
 
@@ -292,6 +296,18 @@ DMA 증명을 풀 수 있게 만든 방법 (`formal/dma_rd/sa_dma_rd_props.svh`)
 - **테스트벤치 품질:** mutation 캠페인에서 동작이 다른(non-equivalent) mutant를 95% 이상 잡음.
 - **Formal:** 모든 증명이 PASS로 끝나야 함 (UNKNOWN은 안 됨). 모든 cover에 도달해야 하고 (vacuous 증명 아님),
   mutant 스크립트가 버그 mutant를 모두 잡아야 함.
+
+### 8.1 Sign-off 검토 (2026-10-23)
+| 기준 | 상태 | 근거 |
+|---|---|---|
+| Functional coverage | **충족** | CG-01..09의 386 bin 100%, 두 어레이 크기, waiver 없음 |
+| Code coverage | **미해결 (툴)** | 데이터베이스는 수집됨(`make CODECOV=1`); 서버에 읽을 IMC가 없음 |
+| Regression | **충족** | 테스트 17개 x seed 20개, 풀칩 테스트는 ARRAY_N 4와 8 모두: 600/600 통과 |
+| 버그 | **충족** | RTL 버그 없음(`docs/bug_log.md`); 스펙 질문 6개 해결(§9) |
+| 테스트벤치 품질 | **충족** | 시뮬레이션 mutant 16/16, ARRAY_N 4와 8 모두 (100% ≥ 95%) |
+| Formal | **충족** | `csr`, `dma_rd`: k-induction 통과, cover 모두 도달, 버그 mutant 19/19, 안전한 변경 3개 증명 |
+
+판정: ARRAY_N 4와 8에 대해 sign-off. 남은 항목은 code coverage 하나(툴 접근 문제).
 
 ## 9. 열린 질문 (설계자에게)
 | # | 스펙 § | 질문 | 답 (설계자) | 상태 |
