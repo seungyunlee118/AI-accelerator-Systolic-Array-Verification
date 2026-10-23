@@ -1,8 +1,15 @@
 // Full-chip testbench top: sa_top with the AXI4-Lite CPU interface and the AXI4 memory interface.
+// ARRAY_N (PE array size) comes from +define+ARRAY_N=<n> (files_top8.f builds 8); default 4.
+`ifndef ARRAY_N
+  `define ARRAY_N 4
+`endif
+
 module tb_top;
   import uvm_pkg::*;
   `include "uvm_macros.svh"
   import sa_top_tb_pkg::*;
+
+  localparam int ARRAY_N = `ARRAY_N;
 
   logic clk = 1'b0;
   logic por_n;                           // power-on reset
@@ -25,7 +32,7 @@ module tb_top;
   assign sys.busy       = dut.busy;
   assign sys.ctrl_state = dut.u_ctrl.state;
 
-  sa_top #(.ARRAY_N(4)) dut (
+  sa_top #(.ARRAY_N(ARRAY_N)) dut (
     .clk            (clk),
     .rst_n          (rst_n),
     .s_axil_awaddr  (axil.awaddr),  .s_axil_awvalid (axil.awvalid), .s_axil_awready (axil.awready),
@@ -53,6 +60,7 @@ module tb_top;
     uvm_config_db#(virtual axil_if)::set(null, "uvm_test_top*", "vif", axil);
     uvm_config_db#(virtual axi_if)::set(null, "uvm_test_top*", "axi_vif", axi);
     uvm_config_db#(virtual sa_sys_if)::set(null, "uvm_test_top*", "sys_vif", sys);
+    uvm_config_db#(int unsigned)::set(null, "uvm_test_top*", "array_n", ARRAY_N);
     run_test();
   end
 endmodule

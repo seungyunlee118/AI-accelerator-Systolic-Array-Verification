@@ -1,5 +1,6 @@
 // Edge tiles and write containment (vplan F-DP-02, F-DMA-06).
-// Every combination of M mod 4, N mod 4 and output mode (4 x 4 x 2 = 32 jobs) runs twice: once
+// Every combination of M mod T, N mod T and output mode, where T = ARRAY_N is the tile size
+// (4 x 4 x 2 = 32 jobs for a 4x4 array, 8 x 8 x 2 = 128 for 8x8), runs twice: once
 // with C rows packed (C_STRIDE = E*N rounded up to 8 bytes) and once with a gap between rows,
 // and half of the jobs put C near the end of a 4 KB page so C rows are split. The scoreboard
 // checks every C byte, that no byte outside the C elements changed (sentinel in row gaps and in
@@ -15,13 +16,13 @@ class gemm_edge_test extends sa_top_base_test;
     sa_job j = sa_job::type_id::create("j");
 
     for (int pass = 0; pass < 2; pass++)
-      for (int rm = 0; rm < 4; rm++)
-        for (int rn = 0; rn < 4; rn++)
+      for (int rm = 0; rm < array_n; rm++)
+        for (int rn = 0; rn < array_n; rn++)
           for (int rq = 0; rq < 2; rq++) begin
             bit near_page_end = $urandom_range(0, 1);
             mem_random();
             if (!j.randomize() with {
-                  m % 4 == rm;  n % 4 == rn;  req == rq;
+                  m % array_n == rm;  n % array_n == rn;  req == rq;
                   (pass == 0) -> (c_gap == 0);  (pass == 1) -> (c_gap > 0);
                   near_page_end -> (c_base[11:0] >= 12'hF00); })
               `uvm_fatal("RAND", "job")

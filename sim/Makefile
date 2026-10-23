@@ -1,7 +1,8 @@
 # SA-GEMM UVM runs on Cadence Xcelium. Run from sim/.
 #
 #   make                                 # csr_reset_test, seed 1 (CSR testbench)
-#   make TB=top TEST=gemm_rand_test      # full-chip testbench (files_top.f)
+#   make TB=top TEST=gemm_rand_test      # full-chip testbench (files_top.f), 4x4 PE array
+#   make TB=top8 TEST=gemm_rand_test     # the same with an 8x8 PE array (files_top8.f)
 #   make TEST=csr_reset_test SEED=7
 #   make VERB=UVM_HIGH                   # more log detail
 #   make GUI=1                           # open the run in SimVision (remote desktop only)
@@ -38,6 +39,7 @@ endif
 ifeq ($(CODECOV),1)
 COVDUT_csr := sa_csr
 COVDUT_top := sa_top
+COVDUT_top8 := sa_top
 OPTS  += -coverage b:e:f:t -covdut $(COVDUT_$(strip $(TB))) -covoverwrite -covworkdir cov_work \
          -covtest $(TEST)_$(SEED)
 endif

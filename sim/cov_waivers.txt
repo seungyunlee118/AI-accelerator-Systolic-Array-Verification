@@ -1,5 +1,3 @@
 # Functional coverage waivers: bins excluded from the coverage goal, each with its reason.
 # Format: <group> <item> <bin>   # reason (who, when)
-CG-09 cp_array_n ARRAY_8   # ARRAY_N = 8 build is planned for week 6 (vplan CG-09, P2); remove then
-CG-05 cp_awlen AWLEN_2_PLUS   # 4x4 tile rows are at most 16 B, 8-byte aligned: 1-2 beats. ARRAY_N = 8 (32 B rows) reaches it; week 6
-CG-05 x_wstrb_mode WS_FULL*MODE_INT8   # an INT8 4x4 tile row is 4 B, never a full beat. ARRAY_N = 8 (8 B rows) reaches it; week 6
+# (none: the ARRAY_N = 8 build hits the three bins that were waived in week 5)

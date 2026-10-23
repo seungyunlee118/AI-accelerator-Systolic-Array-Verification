@@ -8,6 +8,7 @@ class sa_top_base_test extends uvm_test;
 
   sa_env             env;
   virtual sa_sys_if  sys;
+  int unsigned       array_n = 4;       // PE array size of this build (tile = array_n x array_n)
   time               job_timeout = 20ms;
 
   function new(string name, uvm_component parent);
@@ -19,6 +20,7 @@ class sa_top_base_test extends uvm_test;
     env = sa_env::type_id::create("env", this);
     if (!uvm_config_db#(virtual sa_sys_if)::get(this, "", "sys_vif", sys))
       `uvm_fatal("NOVIF", "virtual sa_sys_if 'sys_vif' not found in config_db")
+    void'(uvm_config_db#(int unsigned)::get(this, "", "array_n", array_n));
     uvm_top.set_timeout(1000ms, 1);
   endfunction
 

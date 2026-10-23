@@ -9,6 +9,7 @@ difference, which must be argued). Run on the server, inside sim/:
   python3 mutate.py                    # all mutants
   python3 mutate.py rd_no_drain        # some of them
   python3 mutate.py -j 8
+  python3 mutate.py --array 8          # against the 8x8 PE array build
 """
 import argparse
 import concurrent.futures as cf
@@ -20,6 +21,7 @@ import time
 import regress
 
 ROOT = os.path.dirname(regress.SIM)
+ARRAY_N = 4          # set by --array
 
 # name: (rtl file, [(original text, mutated text), ...], [tests that must catch it], what)
 MUTANTS = {
@@ -92,6 +94,8 @@ def build_mutant(name, work):
     # filelist with absolute paths: RTL from the mutant copy, everything else from the repo
     fl = open(os.path.join(regress.SIM, "files_top.f")).read()
     fl = fl.replace("../rtl/", os.path.join(d, "rtl") + "/").replace("../tb/", os.path.join(ROOT, "tb") + "/")
+    if ARRAY_N != 4:
+        fl = "+define+ARRAY_N=%d\n" % ARRAY_N + fl
     open(os.path.join(d, "files_top.f"), "w").write(fl)
     return d
 
@@ -114,7 +118,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("names", nargs="*", help="mutants to run (default all)")
     ap.add_argument("-j", "--jobs", type=int, default=6)
+    ap.add_argument("--array", type=int, default=4, help="PE array size of the build (4 or 8)")
     args = ap.parse_args()
+    global ARRAY_N
+    ARRAY_N = args.array
     names = args.names or list(MUTANTS)
     work = os.path.join(regress.SIM, "mutants", time.strftime("%Y%m%d_%H%M%S"))
     os.makedirs(work)

@@ -1,6 +1,6 @@
 // Full-chip functional coverage, CG-02 .. CG-09 of the vplan (§6).
-//   CG-02 job_cfg    each START of a legal job: dimension classes, M/N mod 4, output mode, ReLU,
-//                    stride kinds; cross M mod 4 x N mod 4 x mode
+//   CG-02 job_cfg    each START of a legal job: dimension classes, M/N mod the tile size (edge
+//                    tiles), output mode, ReLU, stride kinds; cross M mod T x N mod T x mode
 //   CG-03 output     each checked C element: result class (incl. exact saturation edges), ties,
 //                    SCALE and SHIFT classes; crosses class x ReLU, class x mode, tie x mode
 //   CG-04 dma_read   each read burst: outstanding when issued, ARID, length, 4 KB end, out of
@@ -11,10 +11,10 @@
 //   CG-07 job_flow   each job end: START while busy, config writes while busy, back-to-back
 //                    START, completion seen by interrupt or by polling
 //   CG-08 reset      each reset after power-on: job phase x reads in flight
-//   CG-09 array      ARRAY_N (8 arrives in week 6)
+//   CG-09 array      ARRAY_N of the build (4 or 8)
 // Only passing runs are merged (sim/regress.py), so coverage never counts a failing job.
 typedef enum {D_1, D_2_3, D_4, D_5_7, D_8, D_9_63, D_64}       cov_dim_e;
-typedef enum {MOD4_0, MOD4_1, MOD4_2, MOD4_3}                   cov_mod4_e;
+typedef enum {MOD_0, MOD_1, MOD_2, MOD_3, MOD_4, MOD_5, MOD_6, MOD_7} cov_mod_e;   // MOD_4..7: 8x8 only
 typedef enum {MODE_INT32, MODE_INT8}                            cov_mode_e;
 typedef enum {RELU_OFF, RELU_ON}                                cov_relu_e;
 typedef enum {STRIDE_EXACT, STRIDE_GAP, STRIDE_OVERLAP, STRIDE_ZERO} cov_stride_e;
@@ -48,6 +48,7 @@ class sa_top_cov extends uvm_component;
   virtual sa_sys_if sys;
   sa_dma_checker    dma_chk;
   sa_cov_db         db;
+  int unsigned      array_n = 4;
 
   localparam int B2B_CYCLES = 30;   // START this soon after the previous job's W1C = back-to-back
 
@@ -59,7 +60,7 @@ class sa_top_cov extends uvm_component;
 
   // ---- sampled values
   cov_dim_e    j_m, j_n, j_k;
-  cov_mod4_e   j_m4, j_n4;
+  cov_mod_e    j_m4, j_n4;
   cov_mode_e   j_mode;
   cov_relu_e   j_relu;
   cov_stride_e j_ast, j_bst;
@@ -101,14 +102,14 @@ class sa_top_cov extends uvm_component;
     cp_m: coverpoint j_m;
     cp_n: coverpoint j_n;
     cp_k: coverpoint j_k;
-    cp_m_mod4: coverpoint j_m4;
-    cp_n_mod4: coverpoint j_n4;
+    cp_m_mod_t: coverpoint j_m4;
+    cp_n_mod_t: coverpoint j_n4;
     cp_mode: coverpoint j_mode;
     cp_relu: coverpoint j_relu;
     cp_a_stride: coverpoint j_ast;
     cp_b_stride: coverpoint j_bst;
     cp_c_gap: coverpoint j_cgap;
-    x_mod4_mode: cross cp_m_mod4, cp_n_mod4, cp_mode;
+    x_mod_t_mode: cross cp_m_mod_t, cp_n_mod_t, cp_mode;
   endgroup
 
   covergroup cg_out;                                   // CG-03
@@ -206,23 +207,24 @@ class sa_top_cov extends uvm_component;
     axil_export = new("axil_export", this);
     if (!uvm_config_db#(virtual sa_sys_if)::get(this, "", "sys_vif", sys))
       `uvm_fatal("NOVIF", "virtual sa_sys_if 'sys_vif' not found in config_db")
+    void'(uvm_config_db#(int unsigned)::get(this, "", "array_n", array_n));
   endfunction
 
   // ------------------------------------------------------------ bin lists for the merge
   function void declare(sa_cov_db d);
     string q[$], dims[$], m4[$], mode[$], relu[$], cls[$], tie[$], ot[$], yn[$], ws[$], rdp[$], ph[$], rot[$];
     db = d;
-    sa_enum_names #(cov_dim_e)::get(dims);   sa_enum_names #(cov_mod4_e)::get(m4);
+    sa_enum_names #(cov_dim_e)::get(dims);   sa_enum_names #(cov_mod_e)::get(m4);
     sa_enum_names #(cov_mode_e)::get(mode);  sa_enum_names #(cov_relu_e)::get(relu);
     sa_enum_names #(cov_yn_e)::get(yn);      sa_enum_names #(cov_ot_e)::get(ot);
 
     db.declare_all("CG-02", "cp_m", dims);  db.declare_all("CG-02", "cp_n", dims);  db.declare_all("CG-02", "cp_k", dims);
-    db.declare_all("CG-02", "cp_m_mod4", m4);  db.declare_all("CG-02", "cp_n_mod4", m4);
+    db.declare_all("CG-02", "cp_m_mod_t", m4);  db.declare_all("CG-02", "cp_n_mod_t", m4);
     db.declare_all("CG-02", "cp_mode", mode);  db.declare_all("CG-02", "cp_relu", relu);
     sa_enum_names #(cov_stride_e)::get(q);
     db.declare_all("CG-02", "cp_a_stride", q);  db.declare_all("CG-02", "cp_b_stride", q);
     sa_enum_names #(cov_cgap_e)::get(q);     db.declare_all("CG-02", "cp_c_gap", q);
-    db.declare_cross3("CG-02", "x_mod4_mode", m4, m4, mode);
+    db.declare_cross3("CG-02", "x_mod_t_mode", m4, m4, mode);
 
     sa_enum_names #(cov_out_e)::get(cls);    db.declare_all("CG-03", "cp_class", cls);
     sa_enum_names #(cov_tie_e)::get(tie);    db.declare_all("CG-03", "cp_tie", tie);
@@ -302,7 +304,7 @@ class sa_top_cov extends uvm_component;
     flag_b2b        = 0;
     if (j.cfg_err() != 0) return;
     j_m = dim_bin(j.m);  j_n = dim_bin(j.n);  j_k = dim_bin(j.k);
-    j_m4 = cov_mod4_e'(j.m % 4);  j_n4 = cov_mod4_e'(j.n % 4);
+    j_m4 = cov_mod_e'(j.m % array_n);  j_n4 = cov_mod_e'(j.n % array_n);
     j_mode = j.req ? MODE_INT8 : MODE_INT32;
     j_relu = j.relu ? RELU_ON : RELU_OFF;
     j_ast  = stride_bin(j.a_stride, j.k);
@@ -310,11 +312,11 @@ class sa_top_cov extends uvm_component;
     j_cgap = (j.c_stride == 8 * ((j.e() * j.n + 7) / 8)) ? C_PACKED : C_GAP;
     cg_job.sample();
     db.hit("CG-02", "cp_m", j_m.name());  db.hit("CG-02", "cp_n", j_n.name());  db.hit("CG-02", "cp_k", j_k.name());
-    db.hit("CG-02", "cp_m_mod4", j_m4.name());  db.hit("CG-02", "cp_n_mod4", j_n4.name());
+    db.hit("CG-02", "cp_m_mod_t", j_m4.name());  db.hit("CG-02", "cp_n_mod_t", j_n4.name());
     db.hit("CG-02", "cp_mode", j_mode.name());  db.hit("CG-02", "cp_relu", j_relu.name());
     db.hit("CG-02", "cp_a_stride", j_ast.name());  db.hit("CG-02", "cp_b_stride", j_bst.name());
     db.hit("CG-02", "cp_c_gap", j_cgap.name());
-    db.hit("CG-02", "x_mod4_mode", {j_m4.name(), "*", j_n4.name(), "*", j_mode.name()});
+    db.hit("CG-02", "x_mod_t_mode", {j_m4.name(), "*", j_n4.name(), "*", j_mode.name()});
   endfunction
 
   // ------------------------------------------------------------ CG-03: one checked C element
@@ -436,7 +438,7 @@ class sa_top_cov extends uvm_component;
   // ------------------------------------------------------------ CG-08 / CG-09
   virtual task run_phase(uvm_phase phase);
     bit released = 0;
-    a_n = ARRAY_4;                                    // tb_top instantiates ARRAY_N = 4
+    a_n = (array_n == 8) ? ARRAY_8 : ARRAY_4;
     cg_array.sample();
     db.hit("CG-09", "cp_array_n", a_n.name());
     fork

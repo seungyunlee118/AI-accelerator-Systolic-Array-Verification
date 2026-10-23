@@ -9,6 +9,10 @@ time, each in its own directory. Run on the server, inside sim/:
   python3 regress.py -t err_bus_test -t gemm_quant_test --seeds 3
   python3 regress.py --seed-list 7 42        # exact seeds
   python3 regress.py -j 8                    # simulations at the same time (default 6)
+  python3 regress.py --array 8               # full-chip tests only on the 8x8 build
+
+Full-chip tests run on every PE array size given by --array (default 4 and 8; files_top.f and
+files_top8.f); 8x8 runs are named <test>@8x8.
 
 Output goes to regress/<date_time>/: one log per run, summary.txt, results.xml (JUnit XML,
 the format CI servers read), and coverage.txt: functional coverage merged over the passing runs
@@ -111,8 +115,7 @@ def write_junit(results, path):
     suite = ET.Element("testsuite", name="sa_gemm", tests=str(len(results)),
                        failures=str(sum(not r["passed"] for r in results)))
     for r in results:
-        tb = TESTS[r["test"]][0]
-        case = ET.SubElement(suite, "testcase", classname=tb, name="%s.seed%d" % (r["test"], r["seed"]),
+        case = ET.SubElement(suite, "testcase", classname=r["tb"], name="%s.seed%d" % (r["test"], r["seed"]),
                              time="%.1f" % r["secs"])
         if not r["passed"]:
             ET.SubElement(case, "failure", message=r["msg"]).text = r["log"]
@@ -126,6 +129,7 @@ def main():
     ap.add_argument("--seed-list", type=int, nargs="+", help="exact seeds instead of 1..N")
     ap.add_argument("-j", "--jobs", type=int, default=6, help="parallel simulations (default 6)")
     ap.add_argument("-o", "--out", help="output directory (default regress/<date_time>)")
+    ap.add_argument("--array", default="4,8", help="PE array sizes for full-chip tests (default 4,8)")
     args = ap.parse_args()
 
     tests = args.test or list(TESTS)
@@ -136,39 +140,55 @@ def main():
     out = os.path.abspath(args.out or os.path.join(SIM, "regress", time.strftime("%Y%m%d_%H%M%S")))
     os.makedirs(out, exist_ok=True)
 
+    # (label, test, build): full-chip tests once per array size, the 8x8 build is "top8"
+    variants = []
+    for t in tests:
+        if TESTS[t][0] != "top":
+            variants.append((t, t, TESTS[t][0]))
+            continue
+        for n in [int(x) for x in args.array.split(",")]:
+            variants.append((t if n == 4 else "%s@%dx%d" % (t, n, n), t, "top" if n == 4 else "top%d" % n))
+    labels = [v[0] for v in variants]
+
     t0 = time.time()
     libs = {}
-    for tb in sorted({TESTS[t][0] for t in tests}):
+    for tb in sorted({v[2] for v in variants}):
         print("compiling %s ..." % tb, flush=True)
         libs[tb] = compile_tb(tb, out)
 
-    runs = [(t, s) for t in tests for s in seeds]
+    runs = [(v, s) for v in variants for s in seeds]
     print("running %d simulations, %d at a time -> %s" % (len(runs), args.jobs, out), flush=True)
     results = []
+
+    def run_variant(v, s):
+        label, test, tb = v
+        r = run_one(libs[tb], test, s, TESTS[test][1], os.path.join(out, "runs", "%s_%d" % (label, s)))
+        r["test"], r["tb"] = label, tb
+        return r
+
     with cf.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futs = [pool.submit(run_one, libs[TESTS[t][0]], t, s, TESTS[t][1],
-                            os.path.join(out, "runs", "%s_%d" % (t, s))) for t, s in runs]
+        futs = [pool.submit(run_variant, v, s) for v, s in runs]
         for f in cf.as_completed(futs):
             r = f.result()
             results.append(r)
             print("  %-4s %-22s seed %-3d %5.0fs" % ("PASS" if r["passed"] else "FAIL", r["test"], r["seed"], r["secs"]),
                   flush=True)
 
-    results.sort(key=lambda r: (tests.index(r["test"]), r["seed"]))
-    lines = ["%-22s %5s  %-6s %8s %10s %7s  %s" % ("test", "seed", "result", "jobs", "sim (us)", "wall", "first error")]
+    results.sort(key=lambda r: (labels.index(r["test"]), r["seed"]))
+    lines = ["%-28s %5s  %-6s %8s %10s %7s  %s" % ("test", "seed", "result", "jobs", "sim (us)", "wall", "first error")]
     for r in results:
-        lines.append("%-22s %5d  %-6s %8s %10.0f %6.0fs  %s" % (r["test"], r["seed"], "PASS" if r["passed"] else "FAIL",
+        lines.append("%-28s %5d  %-6s %8s %10.0f %6.0fs  %s" % (r["test"], r["seed"], "PASS" if r["passed"] else "FAIL",
                                                              r["jobs"], r["sim_us"], r["secs"], r["msg"]))
     n_fail = sum(not r["passed"] for r in results)
     lines.append("")
-    for t in tests:
+    for t in labels:
         rs = [r for r in results if r["test"] == t]
-        lines.append("%-22s %d/%d passed" % (t, sum(r["passed"] for r in rs), len(rs)))
+        lines.append("%-28s %d/%d passed" % (t, sum(r["passed"] for r in rs), len(rs)))
     lines.append("")
     lines.append("%d runs: %d passed, %d failed (wall %.0f s)" % (len(results), len(results) - n_fail, n_fail,
                                                                  time.time() - t0))
     if n_fail:
-        lines.append("reproduce a failure: make TB=<tb> TEST=<test> SEED=<seed>   (add GUI=1 or WAVE=1 to debug)")
+        lines.append("reproduce a failure: make TB=<csr|top|top8> TEST=<test> SEED=<seed>   (add GUI=1 or WAVE=1 to debug)")
     report = "\n".join(lines)
     print("\n" + report)
     open(os.path.join(out, "summary.txt"), "w").write(report + "\n")

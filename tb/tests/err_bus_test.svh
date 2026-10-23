@@ -33,7 +33,7 @@ class err_bus_test extends sa_top_base_test;
       // Beats the job reads: rows are 8-byte aligned, so each row is ceil(len/8) beats.
       // Write responses: at least one per tile row of C (more if a row crosses 4 KB).
       total = is_rd ? j.m * ((j.k + 7) / 8) + j.k * ((j.n + 7) / 8)
-                    : j.m * ((j.n + 3) / 4);
+                    : j.m * ((j.n + array_n - 1) / array_n);
       where = (i / 2) % 3;                         // 0 first, 1 last, 2 random
       at    = (where == 0) ? 1 : (where == 1) ? total : $urandom_range(1, total);
       if (is_rd) env.axi.cfg.rd_err_at_beat = at;
