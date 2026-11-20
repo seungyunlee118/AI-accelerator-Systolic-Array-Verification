@@ -26,7 +26,7 @@ proofs with SymbiYosys, Python regression, coverage and mutation tooling.
 
 ## Architecture
 <p align="center">
-  <img src="docs/sa_gemm_block_diagram.svg" alt="SA-GEMM DUT block diagram" width="680">
+  <img width="2522" height="1390" alt="image" src="https://github.com/user-attachments/assets/d8cfbf05-637d-4ef8-b565-e8d0c311ccb7" />
 </p>
 
 1. The CPU (the UVM AXI4-Lite agent in simulation) programs the CSR block and writes `CTRL.START`.
