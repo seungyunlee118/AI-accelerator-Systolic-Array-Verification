@@ -40,6 +40,8 @@ proofs with SymbiYosys, Python regression, coverage and mutation tooling.
 5. On completion or error the CSR block raises `irq`.
 
 ## Verification approach
+<img width="2100" height="1515" alt="sagemm-15-tb-structure" src="https://github.com/user-attachments/assets/772a869f-f387-499f-a984-a666f6c0fdff" />
+
 - **Plan first.** [`docs/vplan.md`](docs/vplan.md) maps every spec clause to a feature, bug
   hypotheses, stimulus, checker (CHK-01..12) and coverage (CG-01..09). Korean translations of the
   spec and plan are in `docs/ko/`.
