@@ -27,6 +27,9 @@ proofs with SymbiYosys, Python regression, coverage and mutation tooling.
 ## Architecture
 <p align="center">
   <img width="4000" height="2952" alt="image" src="https://github.com/user-attachments/assets/d202d843-217c-4b61-a139-7211c23a239e" />
+
+  <img width="2798" height="1950" alt="image" src="https://github.com/user-attachments/assets/5f93c10e-9015-4263-83f8-8adaa0a7bc5c" />
+  
 </p>
 
 1. The CPU (the UVM AXI4-Lite agent in simulation) programs the CSR block and writes `CTRL.START`.
